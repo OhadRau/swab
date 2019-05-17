@@ -147,13 +147,13 @@ export const c2js = (env, c) => {
     return id()
   case 'u32':
     const u32 = gensym()
-    return `(${u32} => ${u32} + 4294967295 + 1)`
+    return `(${u32} => ${u32} + 4294967295n + 1n)`
   case 'i32':
     return id()
   // TODO: Generate wrapper functions to handle u64/i64 returns/params & have wrapper lookup table
   case 'u64':
     const u64 = gensym()
-    return `(${u64} => ${u64} + 18446744073709551615 + 1)`
+    return `(${u64} => ${u64} + 18446744073709551615n + 1n)`
   case 'i64':
     return id()
   case 'f32':
@@ -164,7 +164,6 @@ export const c2js = (env, c) => {
     switch (c.params[0].type) {
     case 'char':
       const charPtr = gensym(), str = gensym(), charVal = gensym(), charIdx = gensym()
-// TODO: the ++/-- won't cut it here, what if we add 2 functions but wait to call them? We need to think like malloc here...
       return (
 `
 (${charPtr} => {
@@ -221,7 +220,7 @@ export const c2js = (env, c) => {
     )
 
     // TODO: If it returns void don't do anything with the result value
-
+    // FIXME: the ++/-- won't cut it here, what if we add 2 functions but wait to call them? We need to think like malloc here...
     // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
     return (
 `

@@ -7,6 +7,8 @@ export function createEnv() {
     wrapfnname: "__wasm_wrap_function",
     wrapI64Name: "__wasm_wrap_i64",
     bigIntType: { type: "__wasm_big_int", params: [] },
+    callbackTableName: "__wasm_wrapper_table",
+    wrapperCache: {},
     sizeofTable: {},
     i64Table: {}
   }

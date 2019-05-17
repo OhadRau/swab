@@ -5,7 +5,7 @@ import { gensym } from './env.js'
 // see also: https://www.cs.dartmouth.edu/~mckeeman/cs48/references/c.html
 // see also x2: https://cdecl.org/
 // Basically, abstract declarators can't really be represented recursively I think :/
-export function type2ctype(type, buffer) {
+export function type2ctype(type, buffer = '') {
   /* This buffer is really important to this function working. We have to utilize
    * tail-recursion to do the recursion top-down. Why? The way that C declarators
    * work is that the as we descend into the type tree, the new type information
@@ -14,7 +14,6 @@ export function type2ctype(type, buffer) {
    * buffer allows us to append to both sides of the string as we descend the type
    * tree.
    */
-  buffer = buffer === undefined ? '' : buffer
   // Make sure to #include <stdbool.h> & #include <stdint.h>
   switch (type.type) {
     case 'bool':

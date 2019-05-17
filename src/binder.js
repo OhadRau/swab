@@ -1,5 +1,6 @@
 import { c2js } from './types.js'
 import { type2ctype, type2cdecl, wrapSizeof, wrapI64Fn } from './gen_c.js'
+import { cacheWrapper } from './callback.js'
 import { createEnv } from './env.js'
 
 let env = createEnv()
@@ -56,3 +57,8 @@ let my_stupid_type = {
 
 console.log("Generating concrete declarator:")
 console.log("\t" + type2cdecl(my_stupid_type, 'f'))
+
+console.log("Caching wrapper:")
+let [wrapperId, wrapperBody] = cacheWrapper(env, [{type: 'i32', params: []}], my_c_type)
+console.log("\tWrapper ID: " +  wrapperId)
+console.log("\tWrapper Body: " + wrapperBody)
