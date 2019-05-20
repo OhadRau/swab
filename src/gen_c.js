@@ -88,15 +88,14 @@ export function type2cFnDecl(name, argTypes, argNames, retType) {
 
 export function wrapSizeof(env, type) {
   const wrapper = gensym()
-  env.sizeofTable[type] = wrapper
+  env.sizeofTable[type2ctype(type)] = wrapper
 
-  return (
-`
+  env.cBuffer += `
 size_t ${wrapper}() {
   return sizeof(${type2ctype(type)});
 }
-`)
-
+`
+  return wrapper
 }
 
 export function wrapI64Fn(env, fn, argTypes, retType) {
@@ -106,7 +105,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
 
   const retype = oldType =>
     oldType.type == 'i64' || oldType.type == 'u64'
-      ? env.bigIntType
+      ? { type: '__wasm_big_int', params: [] }
       : oldType
 
   const actualReturnType = retype(retType)
@@ -120,19 +119,20 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
 
   const wrappedArgs = actualArgNames.map((name, index) =>
     wrapArg(index)
-      ? `${env.wrapI64Name}(${name})`
+      ? `__wasm_wrap_i64(${name})`
       : name
   )
 
   const wrappedCall =
     wrapReturn
-      ? `${env.wrapI64Name}(${fn}(${wrappedArgs.join(',')}))`
+      ? `__wasm_wrap_i64(${fn}(${wrappedArgs.join(',')}))`
       : `${fn}(${wrappedArgs.join(',')})`
 
-  return (
-`
+  env.cBuffer += `
 ${type2cFnDecl(wrapper, actualArgTypes, actualArgNames, actualReturnType)} {
   return ${wrappedCall}
 }
-`)
+`
+
+  return wrapper
 }

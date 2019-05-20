@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "description": "Generate JS<->C bindings for use with WASM-compiled code",
   "scripts": {
-    "build": "babel src -d bin"
+    "build": "babel src -d bin",
+    "exec": "node bin/binder.js"
   },
   "author": "Ohad Rau <ohadrau@google.com>",
   "license": "All Rights Reserved",

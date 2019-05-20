@@ -1,4 +1,5 @@
 import { gensym } from './env.js'
+import { type2ctype } from './gen_c.js' // Avoid circular dependencies pls
 
 export const jstypes = Object.freeze([
   'boolean',
@@ -51,58 +52,15 @@ export const c2wasm_type = c => {
   }
 }
 
-// TODO: Can we delete this?
-export const c2js_type = c => {
-  switch (c.type) {
-  case 'bool':
-    return { type: 'boolean', params: [], orig: c }
-  case 'char':
-    return { type: 'string', params: [], orig: c }
-  case 'u8':
-  case 'i8':
-  case 'u16':
-  case 'i16':
-  case 'u32':
-  case 'i32':
-  case 'u64':
-  case 'i64':
-  case 'f32':
-  case 'f64':
-    return { type: 'number', params: [], orig: c }
-  case 'pointer':
-    switch (c.params[0].type) {
-    case 'char':
-      return { type: 'string', params: [], orig: c }
-    case 'void':
-      return { type: 'any', params: [], orig: c }
-    default: // TODO: Does this work in all cases? Maybe add a pointer type to JS?
-      let result = c2js_type(c.params[0])
-      result.orig = c // Override the orig field
-      return result
-    }
-  case 'array':
-    // TODO: Is including the extra params the right way to go about this?
-    return { type: 'array', params: c.params.map(c2js_type), orig: c }
-  case 'functionPointer':
-    return { type: 'function', params: [
-      c.params[0].map(c2js_type), // param types
-      c2js_type(c.params[1])      // return type
-    ], orig: c}
-  case 'enum':
-    // TODO:
-  case 'struct':
-    let newparams = {}
-    // TODO: Should this be like [[k, v]] instead of { k: v } (for consistency)?
-    for (key in c.params) {
-      newparams[key] = c2js_type(c.params[key])
-    }
-    return { type: 'object', params: newparams, orig: c }
-  case 'union':
-    // TODO:
-  case 'void':
-    return { type: 'void', params: [], orig: c }
+export const getSizeof = (c) => {
+  let key = type2ctype(c)
+  if (key in env.sizeofTable) {
+    return env.sizeofTable[key]
+  } else {
+    return wrapSizeof(env, c)
   }
 }
+
 
 /* Generate code for type conversion from C -> JS
  * @return Conversion code (string) if conversion is necessary, otherwise `false`
@@ -164,24 +122,22 @@ export const c2js = (env, c) => {
     switch (c.params[0].type) {
     case 'char':
       const charPtr = gensym(), str = gensym(), charVal = gensym(), charIdx = gensym()
-      return (
-`
+      return `
 (${charPtr} => {
   let ${str} = ''
 
   let ${char}
   let ${idx} = 0
-  while ((${charVal} = ${env.memoryname}[${charPtr} + ${charIdx}++]) != 0) {
+  while ((${charVal} = __wasm_memory[${charPtr} + ${charIdx}++]) != 0) {
     ${str} += String.fromCharCode(${charVal})
   }
 
   return ${str}
 })
-`)
+`
     default:
-      // TODO: This'll assume that the pointer points to a single item... Any way to improve?
       const ptr = gensym()
-      return `(${ptr} => ${c2js(env, c.params[0])}(${env.memoryname}[${ptr}]))`
+      return `(${ptr} => new __WasmPointer(${ptr}, ${c2js(env, c.params[0])}, ${getSizeof(c)}())`
     }
   case 'array':
     // TODO: How will memory indexing work here? Do we have to calculate the size of the type?
@@ -189,18 +145,17 @@ export const c2js = (env, c) => {
     const cArray = gensym(), array = gensym(), idx = gensym()
     const elemtype = c.params[0]
     const arrsize = c.params[1]
-    const typesize = env.sizeof(elemtype)
+    const typesize = getSizeof(c)
 
-    return (
-`
+    return `
 (${cArray} => {
   let ${array} = []
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
-    ${array}.push(${c2js(env, elemtype)}(${env.memoryname}[${cArray} + ${typesize} * ${idx}]))
+    ${array}.push(${c2js(env, elemtype)}(__wasm_memory[${cArray} + ${typesize}() * ${idx}]))
   }
   return ${array}
 })
-`)
+`
   case 'functionPointer':
     /* Multi-step process:
      * - Figure out what the equivalent JS types are
@@ -210,8 +165,8 @@ export const c2js = (env, c) => {
     const paramtypes = c.params[0]
     const returntype = c.params[1]
 
-    const cparams = paramtypes.map(cfromjs)
-    const creturn = cfromjs(returntype)
+    const cparams = paramtypes.map(ctype => cfromjs(env, ctype))
+    const creturn = cfromjs(env, returntype)
 
     const fp = gensym(), result = gensym(), id = gensym(), paramNames = paramtypes.map(_ => gensym())
 
@@ -222,17 +177,16 @@ export const c2js = (env, c) => {
     // TODO: If it returns void don't do anything with the result value
     // FIXME: the ++/-- won't cut it here, what if we add 2 functions but wait to call them? We need to think like malloc here...
     // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
-    return (
-`
+    return `
 (${fp} => {
-  const ${id} = ${env.tablebasename}++
-  ${env.tablename}.set(
+  const ${id} = __wasm_table_alloc()
+  __wasm_table.set(
     ${id},
-    ${env.wrapfnname}(
+    __wasm_wrap_function(
       (${paramNames}) => {
         const ${result} =
           ${creturn}(${fp}(${castparams}))
-        ${env.tablebasename}--
+        __wasm_table_free(id)
         return ${result}
       },
       [${paramtypes.map(x => "'" + c2wasm_type(x) + "'")}],
@@ -241,7 +195,7 @@ export const c2js = (env, c) => {
   )
   return ${id}
 })
-`)
+`
   case 'enum':
     break
   case 'struct':
@@ -253,22 +207,9 @@ export const c2js = (env, c) => {
   }
 }
 
-export function cfromjs(type) {
-  return id()
-}
-
-export function test(env) {
-  let my_c_type = {
-    type: 'functionPointer',
-    params: [
-      [
-        { type: 'u64', params: [] },
-        { type: 'char', params: [] },
-        { type: 'pointer', params: [ { type: 'char', params: [] } ] },
-        { type: 'array', params: [ { type: 'int', params: [] }, 3] }
-      ],
-      { type: 'void', params: [] }
-    ]
+export function cfromjs(env, c) {
+  switch (c.type) {
+  default:
+    return id()
   }
-  return c2js(env, my_c_type)
 }

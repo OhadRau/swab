@@ -43,6 +43,12 @@ export function cacheWrapper(env, paramTypes, returnType) {
       0x07, 0x05,              // export section id
       0x01, 0x01, 0x66, 0x00, 0x00 ]            // (export "f" (func 0 (type 0)))
 
+  // Best we can do for caching, since proper module caching was removed from the WASM spec
+  env.jsBuffer += `
+__wasm_table['${wrapperId}'] = new WebAssembly.Module(
+  new Uint8Array([${wasmProgram.join(',')}])
+);
+`
   env.wrapperCache[wrapperId] = wasmProgram
 
   return [wrapperId, wasmProgram]

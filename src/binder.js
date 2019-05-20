@@ -10,7 +10,7 @@ let my_c_type = {
   params: [
     [
       { type: 'u64', params: [] },
-      { type: 'char', params: [] },
+      { type: 'pointer', params: [ { type: 'i32', params: [] } ] },
       { type: 'pointer', params: [ { type: 'char', params: [] } ] },
       { type: 'array', params: [ { type: 'i32', params: [] }, 3] }
     ],
@@ -62,3 +62,6 @@ console.log("Caching wrapper:")
 let [wrapperId, wrapperBody] = cacheWrapper(env, [{type: 'i32', params: []}], my_c_type)
 console.log("\tWrapper ID: " +  wrapperId)
 console.log("\tWrapper Body: " + wrapperBody)
+
+console.log(env.jsBuffer)
+console.log(env.cBuffer)
