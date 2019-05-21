@@ -1,0 +1,74 @@
+{
+  "types": {
+    "Sass_Options": {
+      "type": "struct",
+      "params": {
+        "precision": { "type": "i32" },
+        "output_style": { "type": "bool" },
+        "source_comments": { "type": "bool" },
+        "source_map_embed": { "type": "bool" },
+        "source_map_contents": { "type": "bool" },
+        "source_map_file_urls": { "type": "bool" },
+        "omit_source_map_url": { "type": "bool" },
+        "is_indented_syntax_src": { "type": "bool" },
+        "input_path": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "output_path": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "indent": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "linefeed": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "include_path": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "plugin_path": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "include_paths": { "type": "pointer", "params": [
+          { "type": "pointer", "params": { "type": "char" } } ] },
+        "plugin_paths": { "type": "pointer", "params": [
+          { "type": "pointer", "params": { "type": "char" } } ] },
+        "source_map_file": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "source_map_root": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "c_functions": { "type": "Sass_C_Function_List" },
+        "importer": { "type": "Sass_C_Import_Callback" }
+      }
+    },
+    // https://github.com/sass/libsass/blob/master/docs/api-context.md
+    // Uhh how are we supposed to do struct inheritance in C?
+    "Sass_File_Context": {
+      "type": "struct",
+      "params": {
+        "type": { "type": "Sass_Input_Style" },
+        "output_string": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "source_map_string": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_status": { "type": "i32" },
+        "error_json": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_text": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_message": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_file": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_line": { "type": "i32" },
+        "error_column": { "type": "i32" }
+        "included_files": { "type": "pointer", "params": [
+          { "type": "pointer", "params": { "type": "char" } } ] },
+      }
+    },
+    "Sass_Data_Context": {
+      "type": "struct",
+      "params": {
+        "source_string": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "type": { "type": "Sass_Input_Style" },
+        "output_string": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "source_map_string": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_status": { "type": "i32" },
+        "error_json": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_text": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_message": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_file": { "type": "pointer", "params": [ { "type": "char" } ] },
+        "error_line": { "type": "i32" },
+        "error_column": { "type": "i32" }
+        "included_files": { "type": "pointer", "params": [
+          { "type": "pointer", "params": { "type": "char" } } ] },
+      }
+    }
+  },
+  "functions": {
+    "sass_make_options": {
+      "parameters": [],
+      "returnType": { "type": "pointer", "params": [ { "type": "Sass_Options" } ] }
+    }
+  }
+}

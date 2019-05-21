@@ -1,8 +1,53 @@
+import * as fs from 'fs'
+
 import { c2js } from './types.js'
 import { type2ctype, type2cdecl, wrapAccessors, wrapSizeof, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv } from './env.js'
 
+function genBindings(configFile, wasmFile) {
+  let config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
+
+  let env = createEnv(wasmFile)
+
+  // Add user-defined types to substitution table
+  for (let type in config.types) {
+    env.substitutions[type] = config.types[type]
+  }
+
+  for (let functionName in config.functions) {
+    // TODO: Generate the function binding
+    let fn = config.functions[functionName]
+    const isI64 = t => t.type === 'i64' || t.type === 'u64'
+    if (isI64(fn.returnType) || fn.parameters.some(isI64)) {
+      functionName = wrapI64Fn(env, functionName, fn.parameters, fn.returnType)
+    }
+
+    const params = fn.parameters.map(_ => gensym())
+    const args = params.map((param, index) => `${c2js(env, fn.parameters[index])}(${param})`)
+
+    let wrapReturn = c2js(env, fn.returnType)
+
+    env.jsBuffer += `
+function ${functionName}(${params.join(',')}) {
+  return ${wrapReturn}(
+    ${functionName}(
+      ${args.join(',')}
+    )
+  )
+}
+`
+  }
+
+  return env
+}
+
+const env = genBindings('./test/basic-config.json', 'library.wasm')
+console.log(env.jsBuffer)
+console.log('========================================================')
+console.log(env.cBuffer)
+
+/*
 let env = createEnv('test.wasm')
 
 let struct_ptr_type = {
@@ -42,7 +87,7 @@ console.log("Generating sizeof:")
 console.log(wrapSizeof(env, my_c_type))
 
 console.log("Generating i64:")
-console.log(wrapI64Fn(env, 'f', [{type:'i64', params: []}], my_c_type));
+console.log(wrapI64Fn(env, 'f', [{type:'i64', params: []}], my_c_type))
 
 let my_stupid_type = {
   type: 'array',
@@ -81,3 +126,4 @@ console.log("\tWrapper Body: " + wrapperBody)
 
 console.log(env.jsBuffer)
 console.log(env.cBuffer)
+*/

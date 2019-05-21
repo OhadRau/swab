@@ -1,0 +1,16 @@
+{
+  "types": {
+    "options": {
+      "type": "struct",
+      "params": {
+        "size": { "type": "int" }
+      }
+    }
+  },
+  "functions": {
+    "make_options": {
+      "parameters": [],
+      "returnType": { "type": "pointer", "params": [ { "type": "options" } ] }
+    }
+  }
+}

@@ -19,7 +19,7 @@ export function cacheWrapper(env, paramTypes, returnType) {
   let wasmTypeInfo =
     [ wasmParams.length,
       ...(wasmParams.map(x => encodeType[x])),
-      ...(wasmReturn == 'void' ? [0x00] : [0x01, encodeType[wasmReturn]]) ]
+      ...(wasmReturn === 'void' ? [0x00] : [0x01, encodeType[wasmReturn]]) ]
 
   if (wasmTypeInfo in env.wrapperCache) {
     return [env.wrapperCache[wasmTypeInfo], false]

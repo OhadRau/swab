@@ -5,9 +5,34 @@ export function createEnv(wasmFile) {
     accessorTable: {},
     sizeofTable: {},
     i64Table: {},
+    c2jsTable: {},
+    substitutions: {
+      'int8_t': { type: 'i8', params: [] },
+      'uint8_t': { type: 'u8', params: [] },
+
+      'short': { type: 'i16', params: [] },
+      'int16_t': { type: 'i16', params: [] },
+      'unsigned short': { type: 'u16', params: [] },
+      'uint16_t': { type: 'u16', params: [] },
+
+      'int': { type: 'i32', params: [] },
+      'int32_t': { type: 'i32', params: [] },
+      'unsigned int': { type: 'u32', params: [] },
+      'uint32_t': { type: 'u32', params: [] },
+      'size_t': { type: 'u32', params: [] },
+
+      'long': { type: 'i64', params: [] },
+      'int64_t': { type: 'i64', params: [] },
+      'unsigned long': { type: 'u64', params: [] },
+      'uint64_t': { type: 'u64', params: [] },
+
+      'float': { type: 'f32', params: [] },
+      'double': { type: 'f64', params: [] }
+    },
+    // TODO: Handle escape codes in wasmFile name
     jsBuffer: `
 import 'wasm-bindlib'
-Promise.resolve(__wasm_load(${wasmFile}))
+Promise.resolve(__wasm_load('${wasmFile}'))
 `,
     cBuffer: `
 #include "bindlib.h"

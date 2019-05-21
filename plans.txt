@@ -1,0 +1,12 @@
+- Rewrite c2js/js2c
+  * We want **NAMED** functions
+  * Why? No other way to deal with recursion
+  * Simple solution:
+    - Don't change anything major
+    - c2js caches results in the env.jsBuffer
+    - c2js returns the function name, rather than the function body
+  * Do we still need to detect recursion?
+    - I think so (but maybe not)
+    - Easy way:
+       * Keep a stack of visited types
+       * If current type in stack, recursion found

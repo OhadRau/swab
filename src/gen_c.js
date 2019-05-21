@@ -134,7 +134,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
   env.i64Table[fn] = wrapper
 
   const retype = oldType =>
-    oldType.type == 'i64' || oldType.type == 'u64'
+    oldType.type === 'i64' || oldType.type === 'u64'
       ? { type: '__wasm_big_int', params: [] }
       : oldType
 
@@ -143,9 +143,9 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
   const actualArgTypes = argTypes.map(oldType => retype(oldType))
 
   const wrapReturn =
-    retType.type == 'i64' || retType.type == 'u64'
+    retType.type === 'i64' || retType.type === 'u64'
   const wrapArg = index =>
-    argTypes[index].type == 'i64' || argTypes[index].type == 'u64'
+    argTypes[index].type === 'i64' || argTypes[index].type === 'u64'
 
   const wrappedArgs = actualArgNames.map((name, index) =>
     wrapArg(index)
