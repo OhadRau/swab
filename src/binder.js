@@ -1,9 +1,25 @@
 import { c2js } from './types.js'
-import { type2ctype, type2cdecl, wrapSizeof, wrapI64Fn } from './gen_c.js'
+import { type2ctype, type2cdecl, wrapAccessors, wrapSizeof, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv } from './env.js'
 
-let env = createEnv()
+let env = createEnv('test.wasm')
+
+let struct_ptr_type = {
+  type: 'pointer',
+  params: [
+    { type: 'struct',
+      params: {
+	'a': { type: 'u32', params: [] },
+	'b': { type: 'pointer', params: [ { type: 'char', params: [] } ] }
+      }
+    }
+  ]
+}
+
+console.log("Generating convertor for:")
+console.log("\t" + type2ctype(struct_ptr_type))
+console.log(c2js(env, struct_ptr_type))
 
 let my_c_type = {
   type: 'functionPointer',

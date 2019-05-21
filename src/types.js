@@ -1,5 +1,5 @@
 import { gensym } from './env.js'
-import { type2ctype } from './gen_c.js' // Avoid circular dependencies pls
+import { type2ctype, wrapSizeof, wrapAccessors } from './gen_c.js'
 
 export const jstypes = Object.freeze([
   'boolean',
@@ -32,12 +32,12 @@ export const ctypes = Object.freeze([
   'void'
 ])
 
-const id = () => {
+function id() {
   const name = gensym()
   return `(${name} => ${name})`
 }
 
-export const c2wasm_type = c => {
+export function c2wasm_type(c) {
   switch (c.type) {
     case 'u64': case 'i64':
       return 'i64'
@@ -52,8 +52,8 @@ export const c2wasm_type = c => {
   }
 }
 
-export const getSizeof = (c) => {
-  let key = type2ctype(c)
+export function getSizeof(env, c) {
+  let key = JSON.stringify(c)
   if (key in env.sizeofTable) {
     return env.sizeofTable[key]
   } else {
@@ -61,11 +61,19 @@ export const getSizeof = (c) => {
   }
 }
 
+export function getAccessors(env, c) {
+  let key = JSON.stringify(c)
+  if (key in env.accessorTable) {
+    return env.accessorTable[key]
+  } else {
+    return wrapAccessors(env, c)
+  }
+}
 
 /* Generate code for type conversion from C -> JS
  * @return Conversion code (string) if conversion is necessary, otherwise `false`
  */
-export const c2js = (env, c) => {
+export function c2js(env, c) {
   /* How does signed/unsigned conversion work?
    * WASM doesn't store 'signededness,' but the
    * default interpretation is going to be as a
@@ -90,39 +98,39 @@ export const c2js = (env, c) => {
    * happen.
    */
   switch (c.type) {
-  case 'bool':
-    return id()
-  case 'char':
-    const char = gensym()
-    return `(${char} => String.fromCharCode(${char}))`
-  case 'u8':
-    return id()
-  case 'i8':
-    return id()
-  case 'u16':
-    return id()
-  case 'i16':
-    return id()
-  case 'u32':
-    const u32 = gensym()
-    return `(${u32} => ${u32} + 4294967295n + 1n)`
-  case 'i32':
-    return id()
-  // TODO: Generate wrapper functions to handle u64/i64 returns/params & have wrapper lookup table
-  case 'u64':
-    const u64 = gensym()
-    return `(${u64} => ${u64} + 18446744073709551615n + 1n)`
-  case 'i64':
-    return id()
-  case 'f32':
-    return id()
-  case 'f64':
-    return id()
-  case 'pointer':
-    switch (c.params[0].type) {
+    case 'bool':
+      return id()
     case 'char':
-      const charPtr = gensym(), str = gensym(), charVal = gensym(), charIdx = gensym()
-      return `
+      const char = gensym()
+      return `(${char} => String.fromCharCode(${char}))`
+    case 'u8':
+      return id()
+    case 'i8':
+      return id()
+    case 'u16':
+      return id()
+    case 'i16':
+      return id()
+    case 'u32':
+      const u32 = gensym()
+      return `(${u32} => ${u32} + 4294967295n + 1n)`
+    case 'i32':
+      return id()
+      // TODO: Generate wrapper functions to handle u64/i64 returns/params & have wrapper lookup table
+    case 'u64':
+      const u64 = gensym()
+      return `(${u64} => ${u64} + 18446744073709551615n + 1n)`
+    case 'i64':
+      return id()
+    case 'f32':
+      return id()
+    case 'f64':
+      return id()
+    case 'pointer':
+      switch (c.params[0].type) {
+      case 'char':
+	const charPtr = gensym(), str = gensym(), charVal = gensym(), charIdx = gensym()
+	return `
 (${charPtr} => {
   let ${str} = ''
 
@@ -135,19 +143,19 @@ export const c2js = (env, c) => {
   return ${str}
 })
 `
-    default:
-      const ptr = gensym()
-      return `(${ptr} => new __WasmPointer(${ptr}, ${c2js(env, c.params[0])}, ${getSizeof(c)}())`
-    }
-  case 'array':
-    // TODO: How will memory indexing work here? Do we have to calculate the size of the type?
-    // Can we assume every element is an i32?
-    const cArray = gensym(), array = gensym(), idx = gensym()
-    const elemtype = c.params[0]
-    const arrsize = c.params[1]
-    const typesize = getSizeof(c)
+      default:
+	const ptr = gensym()
+	return `(${ptr} => new __WasmPointer(${ptr}, ${c2js(env, c.params[0])}, ${getSizeof(env, c)}())`
+      }
+    case 'array':
+      // TODO: How will memory indexing work here? Do we have to calculate the size of the type?
+      // Can we assume every element is an i32?
+      const cArray = gensym(), array = gensym(), idx = gensym()
+      const elemtype = c.params[0]
+      const arrsize = c.params[1]
+      const typesize = getSizeof(env, c)
 
-    return `
+      return `
 (${cArray} => {
   let ${array} = []
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
@@ -156,28 +164,28 @@ export const c2js = (env, c) => {
   return ${array}
 })
 `
-  case 'functionPointer':
-    /* Multi-step process:
-     * - Figure out what the equivalent JS types are
-     * - Setup code to perform the JS->C conversions for args + return value
-     * - Do the conversion into a JS function
-     */
-    const paramtypes = c.params[0]
-    const returntype = c.params[1]
+    case 'functionPointer':
+      /* Multi-step process:
+       * - Figure out what the equivalent JS types are
+       * - Setup code to perform the JS->C conversions for args + return value
+       * - Do the conversion into a JS function
+       */
+      const paramtypes = c.params[0]
+      const returntype = c.params[1]
 
-    const cparams = paramtypes.map(ctype => cfromjs(env, ctype))
-    const creturn = cfromjs(env, returntype)
+      const cparams = paramtypes.map(ctype => cfromjs(env, ctype))
+      const creturn = cfromjs(env, returntype)
 
-    const fp = gensym(), result = gensym(), id = gensym(), paramNames = paramtypes.map(_ => gensym())
+      const fp = gensym(), result = gensym(), id = gensym(), paramNames = paramtypes.map(_ => gensym())
 
-    const castparams = paramNames.map((name, idx) =>
-      `${cparams[idx]}(${name})`
-    )
+      const castparams = paramNames.map((name, idx) =>
+					`${cparams[idx]}(${name})`
+				       )
 
-    // TODO: If it returns void don't do anything with the result value
-    // FIXME: the ++/-- won't cut it here, what if we add 2 functions but wait to call them? We need to think like malloc here...
-    // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
-    return `
+      // TODO: If it returns void don't do anything with the result value
+      // FIXME: the ++/-- won't cut it here, what if we add 2 functions but wait to call them? We need to think like malloc here...
+      // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
+      return `
 (${fp} => {
   const ${id} = __wasm_table_alloc()
   __wasm_table.set(
@@ -196,20 +204,47 @@ export const c2js = (env, c) => {
   return ${id}
 })
 `
-  case 'enum':
-    break
-  case 'struct':
-    break
-  case 'union':
-    break
-  case 'void':
-    break
+    case 'enum':
+      const name = gensym()
+      return `(${name} => ${JSON.stringify(c.params)}[${name}])`
+    case 'struct':
+    case 'union':
+      /* So interesting question here: setters really only make
+       * sense on pointers (otherwise the setter won't actually
+       * do anything). However, here we're generating accessors
+       * for a non-pointer type. The proper behavior is probably
+       * to only support getters/setters on pointers, but what do
+       * we do instead in this case? If it's a non-pointer type
+       * maybe we want to generate only getters and convert it to
+       * a JS object? */
+      const accessors = getAccessors(env, c)
+
+      let methods = []
+      const obj = gensym()
+      for (let field in c.params) {
+	const value = gensym()
+	methods.push(`get_${field}: (() => ${accessors[field]['getter']}(${obj}))`)
+	methods.push(`set_${field}: ((${value}) => ${accessors[field]['setter']}(${obj}, ${value}))`)
+      }
+
+      /* HACK: We pass both the dereferenced version and the pointer
+       * in `__WasmPointer.derefAndConvert` so that we can preserve
+       * the pointer semantics when the user tries to access the
+       * values. TODO: Change this to something more sensible once we
+       * decide upon the final struct pointer semantics. */
+      return `
+((_, ${obj}) => {
+  ${methods.join(',')}
+})
+`
+    case 'void':
+      break
   }
 }
 
 export function cfromjs(env, c) {
   switch (c.type) {
-  default:
-    return id()
+    default:
+      return id()
   }
 }

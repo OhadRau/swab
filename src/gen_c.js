@@ -58,16 +58,16 @@ export function type2ctype(type, buffer = '') {
       return `enum { ${enumFields.join(',')} } ${buffer}`
     case 'struct':
       let structFields = ''
-      for (key in type.params) {
-        structFields += type2cdecl(type.params[key], key)
+      for (let key in type.params) {
+        structFields += type2cdecl(type.params[key], key) + ';'
       }
-      return `struct { ${structFields.join(';')} } ${buffer}`
+      return `struct { ${structFields} } ${buffer}`
     case 'union':
       const unionFields = ''
-      for (key in type.params) {
-        unionFields += type2cdecl(type.params[key], key)
+      for (let key in type.params) {
+        unionFields += type2cdecl(type.params[key], key) + ';'
       }
-      return `union { ${unionFields.join(';')} } ${buffer}`
+      return `union { ${unionFields} } ${buffer}`
     case 'void':
       return `void ${buffer}`
     default: // Unknown type
@@ -86,9 +86,39 @@ export function type2cFnDecl(name, argTypes, argNames, retType) {
   return type2cdecl(retType, `${name}(${argDecls.join(',')})`)
 }
 
+export function wrapAccessors(env, type) {
+  switch (type.type) {
+    case 'pointer':
+      env.accessorTable[JSON.stringify(type)] = wrapAccessors(env, type.params[0])
+    case 'struct':
+    case 'union':
+      let accessors = {}
+      for (let field in type.params) {
+	const ptrType = { type: 'pointer', params: [type] }
+	const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
+	// TODO: Make this code work properly if we're dealing with a value that needs to be copied
+	env.cBuffer += `
+${type2cFnDecl(getter, [ptrType], [obj], type.params[field])} {
+  return ${obj}->${field};
+}
+
+${type2cFnDecl(setter, [ptrType, type.params[field]], [obj, value], { type: 'void', params: [] })} {
+  ${obj}->${field} = ${value};
+}
+`
+	accessors[field] = { getter, setter}
+      }
+
+      env.accessorTable[JSON.stringify(type)] = accessors
+      return accessors
+    default:
+      throw `Can't generate accesors for type ${type2ctype(type)}`
+  }
+}
+
 export function wrapSizeof(env, type) {
   const wrapper = gensym()
-  env.sizeofTable[type2ctype(type)] = wrapper
+  env.sizeofTable[JSON.stringify(type)] = wrapper
 
   env.cBuffer += `
 size_t ${wrapper}() {
@@ -130,7 +160,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
 
   env.cBuffer += `
 ${type2cFnDecl(wrapper, actualArgTypes, actualArgNames, actualReturnType)} {
-  return ${wrappedCall}
+  return ${wrappedCall};
 }
 `
 

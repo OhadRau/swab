@@ -1,10 +1,19 @@
-export function createEnv() {
+export function createEnv(wasmFile) {
   return {
+    wasmFile,
     wrapperCache: {},
+    accessorTable: {},
     sizeofTable: {},
     i64Table: {},
-    jsBuffer: "",
-    cBuffer: '#include "bindlib.h"\n'
+    jsBuffer: `
+import 'wasm-bindlib'
+Promise.resolve(__wasm_load(${wasmFile}))
+`,
+    cBuffer: `
+#include "bindlib.h"
+#include <stdint.h>
+#include <stdlib.h>
+`
   }
 }
 
