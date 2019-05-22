@@ -37,7 +37,8 @@ function id(env) {
   env.jsBuffer += `
 function ${idFunction}(${name}) {
   return ${name};
-}`
+}
+`
   return idFunction
 }
 
@@ -137,9 +138,9 @@ export function getSizeof(env, c) {
   let type = substitute(env, c)
   let key = JSON.stringify(type)
   if (key in env.sizeofTable) {
-    return env.sizeofTable[key]
+    return `__wasm_exports.${env.sizeofTable[key]}`
   } else {
-    return wrapSizeof(env, type)
+    return `__wasm_exports.${wrapSizeof(env, type)}`
   }
 }
 
@@ -365,8 +366,9 @@ function ${c2enum}(${name}) {
       const c2obj = gensym('c2object'), obj = gensym('object')
       for (let field in c.params) {
 	const value = gensym('value')
-	methods.push(`get_${field}: (() => ${accessors[field]['getter']}(${obj}))`)
-	methods.push(`set_${field}: ((${value}) => ${accessors[field]['setter']}(${obj}, ${value}))`)
+	const to_js = c2js(env, c.params[field]), to_c = js2c(env, c.params[field])
+	methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${accessors[field]['getter']}(${obj})))`)
+	methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${accessors[field]['setter']}(${obj}, ${value})))`)
       }
 
       /* HACK: We pass both the dereferenced version and the pointer
@@ -375,9 +377,9 @@ function ${c2enum}(${name}) {
        * values. TODO: Change this to something more sensible once we
        * decide upon the final struct pointer semantics. */
       env.jsBuffer += `
-function ${c2obj}(_, ${obj}) {
+function ${c2obj}(${gensym('unused')}, ${obj}) {
   return {
-    ${methods.join(',')}
+    ${methods.join(',\n    ')}
   };
 }
 `
@@ -442,7 +444,7 @@ export function js2c(env, c) {
       const creturn = c2js(env, returntype)
 
       const fp2c = gensym('functionPointer2c'), fp = gensym('functionPointer')
-      const result = gensym('result'), id = gensym('fpId')
+      const result = gensym('result'), fpId = gensym('fpId')
       const paramNames = paramtypes.map(_ => gensym('param'))
 
       const castparams = paramNames.map((name, idx) =>
@@ -455,19 +457,19 @@ export function js2c(env, c) {
 function ${c2fp}(${fp}) {
   const ${id} = __wasm_table_alloc();
   __wasm_table.set(
-    ${id},
+    ${fpId},
     __wasm_wrap_function(
       (${paramNames}) => {
         const ${result} =
           ${creturn}(${fp}(${castparams}))
-        __wasm_table_free(id)
+        __wasm_table_free(${fpId})
         return ${result}
       },
       [${paramtypes.map(x => "'" + c2wasm_type(x) + "'")}],
       ${"'" + c2wasm_type(returntype) + "'"}
     )
   );
-  return ${id};
+  return ${fpId};
 }
 `
       env.js2cTable[key] = c2fp
