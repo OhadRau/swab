@@ -25,7 +25,7 @@ export function cacheWrapper(env, paramTypes, returnType) {
     return [env.wrapperCache[wasmTypeInfo], false]
   }
 
-  let wrapperId = gensym()
+  let wrapperId = gensym('wrapperId')
   env.wrapperCache[wasmTypeInfo] = wrapperId
 
   // FIXME: This isn't getting outputted anywhere. How should we go about that?

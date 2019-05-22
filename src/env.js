@@ -45,6 +45,6 @@ __wasm_load('${wasmFile}')
 }
 
 let uniq = 0
-export function gensym() {
-  return `__uniq${uniq++}`
+export function gensym(name = 'uniq') {
+  return `__${name}${uniq++}`
 }

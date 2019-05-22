@@ -31,7 +31,7 @@ function genBindings(configFile, wasmFile) {
       functionName = wrapI64Fn(env, functionName, fn.parameters, fn.returnType)
     }
 
-    const params = fn.parameters.map(_ => gensym())
+    const params = fn.parameters.map(_ => gensym('param'))
     const args = params.map((param, index) => `${c2js(env, fn.parameters[index])}(${param})`)
 
     let wrapReturn = c2js(env, fn.returnType)

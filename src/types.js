@@ -33,7 +33,7 @@ export const ctypes = Object.freeze([
 ])
 
 function id(env) {
-  const idFunction = gensym(), name = gensym()
+  const idFunction = gensym('identity'), name = gensym('x')
   env.jsBuffer += `
 function ${idFunction}(${name}) {
   return ${name};
@@ -191,7 +191,7 @@ export function c2js(env, c) {
       env.c2jsTable[key] = id(env)
       return env.c2jsTable[key]
     case 'char':
-      const c2char = gensym(), char = gensym()
+      const c2char = gensym('c2char'), char = gensym('char')
       env.jsBuffer += `
 function ${c2char}(${char}) {
   return String.fromCharCode(${char}));
@@ -212,7 +212,7 @@ function ${c2char}(${char}) {
       env.c2jsTable[key] = id(env)
       return env.c2jsTable[key]
     case 'u32':
-      const c2u32 = gensym(), u32 = gensym()
+      const c2u32 = gensym('c2u32'), u32 = gensym('u32')
       env.jsBuffer += `
 function ${c2u32}(${u32}) {
   return ${u32} + 4294967295 + 1;
@@ -224,7 +224,7 @@ function ${c2u32}(${u32}) {
       env.c2jsTable[key] = id(env)
       return env.c2jsTable[key]
     case 'u64':
-      const c2u64 = gensym(), u64 = gensym()
+      const c2u64 = gensym('c2u64'), u64 = gensym('u64')
       env.jsBuffer += `
 function ${c2u64}(${u64}) {
   return ${u64} + 18446744073709551615n + 1n;
@@ -244,7 +244,8 @@ function ${c2u64}(${u64}) {
     case 'pointer':
       switch (c.params[0].type) {
       case 'char':
-	const c2str = gensym(), charPtr = gensym(), str = gensym(), charVal = gensym(), charIdx = gensym()
+	const c2str = gensym('c2str'), charPtr = gensym('charPtr'), str = gensym('str')
+	const charVal = gensym('charVal'), charIdx = gensym('charIndex')
 	env.jsBuffer += `
 function ${c2str}(${charPtr}) {
   let ${str} = '';
@@ -269,7 +270,7 @@ function ${c2str}(${charPtr}) {
       case 'f32': case 'f64':
 	// If type is numeric (or numeric-ish), don't convert signded-ness, as the __WasmPointer impl covers this
 	// I *think* pointers and arrays are ok because we don't do any sign changing for those
-	const c2numptr = gensym(), numptr = gensym()
+	const c2numptr = gensym('c2numptr'), numptr = gensym('numptr')
 	env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
   return new __WasmPointer(${numptr}, ${id()}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
@@ -284,7 +285,7 @@ function ${c2numptr}(${numptr}) {
       case 'union':
       case 'enum':
       case 'void':
-	const c2ptr = gensym(), ptr = gensym()
+	const c2ptr = gensym('c2ptr'), ptr = gensym('ptr')
 	const convert = c2js(env, c.params[0])
 	env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
@@ -298,7 +299,8 @@ function ${c2ptr}(${ptr}) {
 	return c2js(env, { type: "pointer", params: [ substitute(env, c.params[0]) ] })
       }
     case 'array':
-      const c2arr = gensym(), cArray = gensym(), array = gensym(), idx = gensym(), ptr = gensym()
+      const c2arr = gensym('c2array'), cArray = gensym('cArray'), array = gensym('array')
+      const idx = gensym('index'), ptr = gensym('pointer')
       const elemtype = c.params[0]
       const arrsize = c.params[1]
       const typesize = getSizeof(env, c)
@@ -320,8 +322,8 @@ function ${c2arr}(${cArray}) {
       const paramtypes = c.params[0]
       const returntype = c.params[1]
 
-      const c2fp = gensym(), fp = gensym()
-      const paramnames = paramtypes.map(_ => gensym())
+      const c2fp = gensym('c2functionPointer'), fp = gensym('functionPointer')
+      const paramnames = paramtypes.map(_ => gensym('param'))
 
       const params2c = paramtypes.map(type => js2c(env, type))
       const return2c = js2c(env, returntype)
@@ -339,7 +341,7 @@ function ${c2fp}(${fp}) {
       env.c2jsTable[key] = c2fp
       return c2fp
     case 'enum':
-      const c2enum = gensym(), name = gensym()
+      const c2enum = gensym('c2enum'), name = gensym('enum')
       jsBuffer += `
 function ${c2enum}(${name}) {
   return ${JSON.stringify(c.params)}[${name}];
@@ -360,9 +362,9 @@ function ${c2enum}(${name}) {
       const accessors = getAccessors(env, c)
 
       let methods = []
-      const c2obj = gensym(), obj = gensym()
+      const c2obj = gensym('c2object'), obj = gensym('object')
       for (let field in c.params) {
-	const value = gensym()
+	const value = gensym('value')
 	methods.push(`get_${field}: (() => ${accessors[field]['getter']}(${obj}))`)
 	methods.push(`set_${field}: ((${value}) => ${accessors[field]['setter']}(${obj}, ${value}))`)
       }
@@ -394,7 +396,7 @@ export function js2c(env, c) {
     case 'bool':
       return id(env)
     case 'char':
-      const char = gensym()
+      const char = gensym('char')
       return `(${char} => ${char}.charCodeAt(0))`
     case 'u8':
       return id(env)
@@ -405,7 +407,7 @@ export function js2c(env, c) {
     case 'i16':
       return id(env)
     case 'u32':
-      const u32 = gensym()
+      const u32 = gensym('u32')
       return `(${u32} => ${u32} - 4294967295 - 1)`
     case 'i32':
       return id(env)
@@ -422,7 +424,7 @@ export function js2c(env, c) {
       return id(env)
     case 'pointer':
       // TODO: If it's a string we'll need to allocate memory here
-      const ptr = gensym()
+      const ptr = gensym('pointer')
       return `(${ptr} => ${ptr}.addr)`
     case 'array':
       // TODO: Again, we'll need to allocate memory
@@ -439,7 +441,9 @@ export function js2c(env, c) {
       const cparams = paramtypes.map(ctype => c2js(env, ctype))
       const creturn = c2js(env, returntype)
 
-      const fp2c = gensym(), fp = gensym(), result = gensym(), id = gensym(), paramNames = paramtypes.map(_ => gensym())
+      const fp2c = gensym('functionPointer2c'), fp = gensym('functionPointer')
+      const result = gensym('result'), id = gensym('fpId')
+      const paramNames = paramtypes.map(_ => gensym('param'))
 
       const castparams = paramNames.map((name, idx) =>
 					`${cparams[idx]}(${name})`

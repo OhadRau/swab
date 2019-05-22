@@ -99,7 +99,8 @@ export function wrapAccessors(env, type) {
 	if (isI64(type.params[field])) {
 	  const fieldType = { type: '__wasm_big_int', params: [] }
 	  const ptrType = { type: 'pointer', params: [type] }
-	  const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
+	  const getter = gensym('getter'), setter = gensym('setter')
+	  const obj = gensym('object'), value = gensym('value')
 	  env.cBuffer += `
 ${type2cFnDecl(getter, [ptrType], [obj], fieldType)} {
   int64_t ${value} = ${obj}->${field};
@@ -114,7 +115,8 @@ ${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', param
 	  accessors[field] = { getter, setter }
 	} else {
 	  const ptrType = { type: 'pointer', params: [type] }
-	  const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
+	  const getter = gensym('getter'), setter = gensym('setter')
+	  const obj = gensym('object'), value = gensym('value')
 	  // TODO: Make this code work properly if we're dealing with a value that needs to be copied
 	  env.cBuffer += `
 ${type2cFnDecl(getter, [ptrType], [obj], type.params[field])} {
@@ -137,7 +139,7 @@ ${type2cFnDecl(setter, [ptrType, type.params[field]], [obj, value], { type: 'voi
 }
 
 export function wrapSizeof(env, type) {
-  const wrapper = gensym()
+  const wrapper = gensym('sizeof')
   env.sizeofTable[JSON.stringify(type)] = wrapper
 
   env.cBuffer += `
@@ -150,7 +152,7 @@ size_t ${wrapper}() {
 
 export function wrapI64Fn(env, fn, argTypes, retType) {
   // TODO: What do we do for function pointers?
-  const wrapper = gensym()
+  const wrapper = gensym('i64_wrapper')
   env.i64Table[fn] = wrapper
 
   const retype = oldType =>
@@ -159,7 +161,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
       : oldType
 
   const actualReturnType = retype(retType)
-  const actualArgNames = argTypes.map(_ => gensym())
+  const actualArgNames = argTypes.map(_ => gensym('param'))
   const actualArgTypes = argTypes.map(oldType => retype(oldType))
 
   const wrapReturn =
