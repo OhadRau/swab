@@ -32,15 +32,7 @@ export const ctypes = Object.freeze([
   'void'
 ])
 
-function id(env) {
-  const idFunction = gensym('identity'), name = gensym('x')
-  env.jsBuffer += `
-function ${idFunction}(${name}) {
-  return ${name};
-}
-`
-  return idFunction
-}
+const id = '__wasm_identity'
 
 // QUESTION: How do we deal with recursion?
 export function substitute(env, type) {
@@ -189,7 +181,7 @@ export function c2js(env, c) {
   }
   switch (c.type) {
     case 'bool':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'char':
       const c2char = gensym('c2char'), char = gensym('char')
@@ -201,16 +193,16 @@ function ${c2char}(${char}) {
       env.c2jsTable[key] = c2char
       return c2char
     case 'u8':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'i8':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'u16':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'i16':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'u32':
       const c2u32 = gensym('c2u32'), u32 = gensym('u32')
@@ -222,7 +214,7 @@ function ${c2u32}(${u32}) {
       env.c2jsTable[key] = c2u32
       return c2u32
     case 'i32':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'u64':
       const c2u64 = gensym('c2u64'), u64 = gensym('u64')
@@ -234,13 +226,13 @@ function ${c2u64}(${u64}) {
       env.c2jsTable[key] = c2u64
       return c2u64
     case 'i64':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'f32':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'f64':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'pointer':
       switch (c.params[0].type) {
@@ -274,7 +266,7 @@ function ${c2str}(${charPtr}) {
 	const c2numptr = gensym('c2numptr'), numptr = gensym('numptr')
 	env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
-  return new __WasmPointer(${numptr}, ${id()}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
+  return new __WasmPointer(${numptr}, ${id}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
 }
 `
 	env.c2jsTable[key] = c2numptr
@@ -386,7 +378,7 @@ function ${c2obj}(${gensym('unused')}, ${obj}) {
       env.c2jsTable[key] = c2obj
       return c2obj
     case 'void':
-      env.c2jsTable[key] = id(env)
+      env.c2jsTable[key] = id
       return env.c2jsTable[key]
     default:
       return c2js(env, substitute(env, c))
@@ -396,34 +388,34 @@ function ${c2obj}(${gensym('unused')}, ${obj}) {
 export function js2c(env, c) {
   switch (c.type) {
     case 'bool':
-      return id(env)
+      return id
     case 'char':
       const char = gensym('char')
       return `(${char} => ${char}.charCodeAt(0))`
     case 'u8':
-      return id(env)
+      return id
     case 'i8':
-      return id(env)
+      return id
     case 'u16':
-      return id(env)
+      return id
     case 'i16':
-      return id(env)
+      return id
     case 'u32':
       const u32 = gensym('u32')
       return `(${u32} => ${u32} - 4294967295 - 1)`
     case 'i32':
-      return id(env)
+      return id
     case 'u64':
       // TODO: This case is tricky. We might need to generate more C
       // I believe we need to split back into upper/lower int32s here and wrap the other function
       // Solution = wrapI64'ing the other function and returning an [upper, lower] array here?
       break
     case 'i64':
-      return id(env)
+      return id
     case 'f32':
-      return id(env)
+      return id
     case 'f64':
-      return id(env)
+      return id
     case 'pointer':
       // TODO: If it's a string we'll need to allocate memory here
       const ptr = gensym('pointer')
@@ -455,7 +447,7 @@ export function js2c(env, c) {
       // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
       env.jsBuffer += `
 function ${c2fp}(${fp}) {
-  const ${id} = __wasm_table_alloc();
+  const ${fpId} = __wasm_table_alloc();
   __wasm_table.set(
     ${fpId},
     __wasm_wrap_function(
@@ -478,8 +470,8 @@ function ${c2fp}(${fp}) {
     case 'struct':
     case 'union':
     case 'void':
-      return id(env)
+      return id
     default:
-      return id(env)
+      return id
   }
 }

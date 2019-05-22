@@ -35,6 +35,10 @@ export function createEnv(wasmFile) {
 import 'wasm-bindlib'
 
 __wasm_load('${wasmFile}')
+
+function __wasm_identity(__x) {
+  return __x;
+}
 `,
     cBuffer: `
 #include "bindlib.h"
