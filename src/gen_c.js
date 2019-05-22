@@ -94,10 +94,29 @@ export function wrapAccessors(env, type) {
     case 'union':
       let accessors = {}
       for (let field in type.params) {
-	const ptrType = { type: 'pointer', params: [type] }
-	const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
-	// TODO: Make this code work properly if we're dealing with a value that needs to be copied
-	env.cBuffer += `
+        // Check if the field is i64, if so wrap the i64 access
+	const isI64 = t => t.type === 'i64' || t.type === 'u64'
+	if (isI64(type.params[field])) {
+	  const fieldType = { type: '__wasm_big_int', params: [] }
+	  const ptrType = { type: 'pointer', params: [type] }
+	  const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
+	  env.cBuffer += `
+${type2cFnDecl(getter, [ptrType], [obj], fieldType)} {
+  int64_t ${value} = ${obj}->${field};
+  return __js_new_big_int(${value} >> 32, ${value} & 0xFFFFFFFF);
+}
+
+${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', params: [] })} {
+  ${obj}->${field}  = __js_big_int_upper(${value}) << 32;
+  ${obj}->${field} |= __js_big_int_lower(${value});
+}
+`
+	  accessors[field] = { getter, setter }
+	} else {
+	  const ptrType = { type: 'pointer', params: [type] }
+	  const getter = gensym(), setter = gensym(), obj = gensym(), value = gensym()
+	  // TODO: Make this code work properly if we're dealing with a value that needs to be copied
+	  env.cBuffer += `
 ${type2cFnDecl(getter, [ptrType], [obj], type.params[field])} {
   return ${obj}->${field};
 }
@@ -106,7 +125,8 @@ ${type2cFnDecl(setter, [ptrType, type.params[field]], [obj, value], { type: 'voi
   ${obj}->${field} = ${value};
 }
 `
-	accessors[field] = { getter, setter}
+	  accessors[field] = { getter, setter }
+	}
       }
 
       env.accessorTable[JSON.stringify(type)] = accessors

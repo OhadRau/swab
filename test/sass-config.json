@@ -27,8 +27,7 @@
         "importer": { "type": "Sass_C_Import_Callback" }
       }
     },
-    // https://github.com/sass/libsass/blob/master/docs/api-context.md
-    // Uhh how are we supposed to do struct inheritance in C?
+    "_comment": "https://github.com/sass/libsass/blob/master/docs/api-context.md, Uhh how are we supposed to do struct inheritance in C?",
     "Sass_File_Context": {
       "type": "struct",
       "params": {
@@ -41,9 +40,9 @@
         "error_message": { "type": "pointer", "params": [ { "type": "char" } ] },
         "error_file": { "type": "pointer", "params": [ { "type": "char" } ] },
         "error_line": { "type": "i32" },
-        "error_column": { "type": "i32" }
+        "error_column": { "type": "i32" },
         "included_files": { "type": "pointer", "params": [
-          { "type": "pointer", "params": { "type": "char" } } ] },
+          { "type": "pointer", "params": { "type": "char" } } ] }
       }
     },
     "Sass_Data_Context": {
@@ -59,10 +58,51 @@
         "error_message": { "type": "pointer", "params": [ { "type": "char" } ] },
         "error_file": { "type": "pointer", "params": [ { "type": "char" } ] },
         "error_line": { "type": "i32" },
-        "error_column": { "type": "i32" }
+        "error_column": { "type": "i32" },
         "included_files": { "type": "pointer", "params": [
-          { "type": "pointer", "params": { "type": "char" } } ] },
+          { "type": "pointer", "params": { "type": "char" } } ] }
       }
+    },
+    "Sass_Tag": {
+      "type": "enum",
+      "params": [
+        "SASS_BOOLEAN",
+        "SASS_NUMBER",
+        "SASS_COLOR",
+        "SASS_STRING",
+        "SASS_LIST",
+        "SASS_MAP",
+        "SASS_NULL",
+        "SASS_ERROR",
+        "SASS_WARNING"
+      ]
+    },
+    "Sass_Separator": {
+      "type": "enum",
+      "params": [
+        "SASS_COMMA",
+        "SASS_SPACE",
+        "SASS_HASH"
+      ]
+    },
+    "Sass_OP": {
+      "type": "enum",
+      "params": [
+        "AND",
+        "OR",
+        "EQ",
+        "NEQ",
+        "GT",
+        "GTE",
+        "LT",
+        "LTE",
+        "ADD",
+        "SUB",
+        "MUL",
+        "DIV",
+        "MOD",
+        "NUM_OPS"
+      ]
     }
   },
   "functions": {

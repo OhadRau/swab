@@ -1,3 +1,10 @@
+- Is dereferencing conversion?
+  * The way things are working right now, it is for numbers
+  * Does that mean that we should do the same for structs/unions/enums and just do away with derefAndConvert()?
+- Properly understand the WASM memory model (!!!)
+  * Memory layout may not always be straight-forward
+  * buffer2js probably doesn't work right
+  * Current memory access patterns are wrong https://developer.mozilla.org/en-US/docs/WebAssembly/Using_the_JavaScript_API
 - Rewrite c2js/js2c
   * We want **NAMED** functions
   * Why? No other way to deal with recursion

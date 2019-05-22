@@ -1,16 +1,35 @@
 {
+  "includes": [
+    "stdio.h"
+  ],
+  "includesRelative": [
+    "mylib.h"
+  ],
   "types": {
+    "version_info": {
+      "type": "struct",
+      "params": {
+        "major": { "type": "int" },
+        "minor": { "type": "int" },
+        "patch": { "type": "int" }
+      }
+    },
     "options": {
       "type": "struct",
       "params": {
-        "size": { "type": "int" }
+        "size": { "type": "int" },
+        "version": { "type": "pointer", "params": [ { "type": "version_info" } ] }
       }
     }
   },
   "functions": {
     "make_options": {
-      "parameters": [],
+      "parameters": [ { "type": "int" } ],
       "returnType": { "type": "pointer", "params": [ { "type": "options" } ] }
+    },
+    "create_f32_array": {
+      "parameters": [],
+      "returnType": { "type": "array", "params": [ { "type": "float" }, 16 ] }
     }
   }
 }

@@ -30,9 +30,11 @@ export function createEnv(wasmFile) {
       'double': { type: 'f64', params: [] }
     },
     // TODO: Handle escape codes in wasmFile name
+    // TODO: Generate everything within a callback/async method
     jsBuffer: `
 import 'wasm-bindlib'
-Promise.resolve(__wasm_load('${wasmFile}'))
+
+__wasm_load('${wasmFile}')
 `,
     cBuffer: `
 #include "bindlib.h"

@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import { c2js } from './types.js'
 import { type2ctype, type2cdecl, wrapAccessors, wrapSizeof, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
-import { createEnv } from './env.js'
+import { createEnv, gensym } from './env.js'
 
 function genBindings(configFile, wasmFile) {
   let config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
@@ -15,8 +15,16 @@ function genBindings(configFile, wasmFile) {
     env.substitutions[type] = config.types[type]
   }
 
+  // Add extra #include's into cBuffer
+  for (let include of config.includes) {
+    env.cBuffer += `#include <${include}>\n`
+  }
+
+  for (let include of config.includesRelative) {
+    env.cBuffer += `#include "${include}"\n`
+  }
+
   for (let functionName in config.functions) {
-    // TODO: Generate the function binding
     let fn = config.functions[functionName]
     const isI64 = t => t.type === 'i64' || t.type === 'u64'
     if (isI64(fn.returnType) || fn.parameters.some(isI64)) {
