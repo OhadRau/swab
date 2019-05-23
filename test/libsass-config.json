@@ -1,0 +1,58 @@
+{
+  "includes": [],
+  "includesRelative": [
+    "libsass/include/sass/base.h",
+    "libsass/include/sass/context.h"
+  ],
+  "types": {
+    "Sass_Output_Style": {
+      "type": "enum",
+      "params": [
+        "SASS_STYLE_NESTED",
+        "SASS_STYLE_EXPANDED",
+        "SASS_STYLE_COMPACT",
+        "SASS_STYLE_COMPRESSED",
+        "SASS_STYLE_INSPECT",
+        "SASS_STYLE_TO_SASS"
+      ]
+    },
+    "Sass_Compiler_State": {
+      "type": "enum",
+      "params": [
+        "SASS_COMPILER_CREATED",
+        "SASS_COMPILER_PARSED",
+        "SASS_COMPILER_EXECUTED"
+      ]
+    }
+  },
+  "functions": {
+    "sass_alloc_memory": {
+      "parameters": [ { "type": "size_t" } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "void" } ] }
+    },
+    "sass_copy_c_string": {
+      "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] }
+    },
+    "sass_free_memory": {
+      "parameters": [ { "type": "pointer", "params": [ { "type": "void" } ] } ],
+      "returnType": { "type": "void" }
+    },
+    "sass_string_quote": {
+      "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] }, { "type": "char" } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] }
+    },
+    "sass_string_unquote": {
+      "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] }
+    },
+    "libsass_version": {
+      "parameters": [ { "type": "void" } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] }
+    },
+    "libsass_language_version": {
+      "parameters": [ { "type": "void" } ],
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] }
+    }
+  }
+}

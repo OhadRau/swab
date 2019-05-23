@@ -1,3 +1,4 @@
+                                                 - - - Q U E S T I O N S - - -
 - Is dereferencing conversion?
   * The way things are working right now, it is for numbers
   * Does that mean that we should do the same for structs/unions/enums and just do away with derefAndConvert()?
@@ -5,6 +6,26 @@
   * Memory layout may not always be straight-forward
   * buffer2js probably doesn't work right
   * Current memory access patterns are wrong https://developer.mozilla.org/en-US/docs/WebAssembly/Using_the_JavaScript_API
+
+
+
+
+
+                                                 - - - C L E A N U P - - -
+- Minor changes
+  * Better getter/setter names (getter_type_field/setter_type_field)
+  * Don't always substitute in C types
+    - For this we'll need to know `struct x` vs `typedef struct x` (just ask the user?)
+  * Clean up JSON format
+    - Inconsistent b/w params[] and params{}, why not just name each one uniquely based on context?
+  * Decide whether to use ES6 module syntax in output & add `export`s
+  * Generate import/export lists for compilers
+  * Generate constructors/destructors for structs (what about unions?)
+
+
+
+
+                                                 - - - C O M P L E T E - - -
 - Rewrite c2js/js2c
   * We want **NAMED** functions
   * Why? No other way to deal with recursion
@@ -17,3 +38,5 @@
     - Easy way:
        * Keep a stack of visited types
        * If current type in stack, recursion found
+
+

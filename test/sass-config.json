@@ -1,4 +1,6 @@
 {
+  "includes": [],
+  "includesRelative": [ "libsass/include/sass/base.h" ],
   "types": {
     "Sass_Options": {
       "type": "struct",

@@ -27,7 +27,9 @@ export function createEnv(wasmFile) {
       'uint64_t': { type: 'u64', params: [] },
 
       'float': { type: 'f32', params: [] },
-      'double': { type: 'f64', params: [] }
+      'double': { type: 'f64', params: [] },
+
+      '__wasm_big_int': { type: 'pointer', params: [ { type: 'void' } ] }
     },
     // TODO: Handle escape codes in wasmFile name
     // TODO: Generate everything within a callback/async method
@@ -44,7 +46,25 @@ function __wasm_identity(__x) {
 #include "bindlib.h"
 #include <stdint.h>
 #include <stdlib.h>
-`
+`,
+    imports: {
+      "__js_new_big_int": {
+	parameters: [
+	  { type: "i32" },
+	  { type: "i32" }
+	],
+	returnType: { type: "__wasm_big_int" }
+      },
+      "__js_big_int_upper": {
+	parameters: [ { type: "__wasm_big_int" } ],
+	returnType: { type: "i32" }
+      },
+      "__js_big_int_lower": {
+	parameters: [ { type: "__wasm_big_int" } ],
+	returnType: { type: "i32" }
+      }
+    },
+    exports: {}
   }
 }
 

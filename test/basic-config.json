@@ -30,6 +30,10 @@
     "create_f32_array": {
       "parameters": [],
       "returnType": { "type": "array", "params": [ { "type": "float" }, 16 ] }
+    },
+    "zzz": {
+      "returnType": { "type": "pointer", "params": [ { "type": "int" }  ] },
+      "parameters": []
     }
   }
 }

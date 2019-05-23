@@ -243,8 +243,8 @@ function ${c2u64}(${u64}) {
 function ${c2str}(${charPtr}) {
   let ${str} = '';
 
-  let ${char};
-  let ${idx} = 0;
+  let ${charVal};
+  let ${charIdx} = 0;
   while ((${charVal} = __wasm_memory[${charPtr} + ${charIdx}++]) != 0) {
     ${str} += String.fromCharCode(${charVal});
   }
@@ -254,23 +254,23 @@ function ${c2str}(${charPtr}) {
 `
 	env.c2jsTable[key] = c2str
 	return c2str
-      case 'bool':
-      case 'char':
       case 'u8': case 'i8':
       case 'u16': case 'i16':
       case 'u32': case 'i32':
       case 'u64': case 'i64':
       case 'f32': case 'f64':
-	// If type is numeric (or numeric-ish), don't convert signded-ness, as the __WasmPointer impl covers this
+	// If type is numeric, don't convert signded-ness, as the __WasmPointer impl covers this
 	// I *think* pointers and arrays are ok because we don't do any sign changing for those
 	const c2numptr = gensym('c2numptr'), numptr = gensym('numptr')
 	env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
-  return new __WasmPointer(${numptr}, ${id}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
+  return new __WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
 }
 `
 	env.c2jsTable[key] = c2numptr
 	return c2numptr
+      case 'bool':
+      case 'char':
       case 'pointer':
       case 'functionPointer':
       case 'array':
@@ -280,9 +280,10 @@ function ${c2numptr}(${numptr}) {
       case 'void':
 	const c2ptr = gensym('c2ptr'), ptr = gensym('ptr')
 	const convert = c2js(env, c.params[0])
+	const unconvert = js2c(env, c.params[0])
 	env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
-  return new __WasmPointer(${ptr}, ${convert}, ${getSizeof(env, c)}(), ${c2pointer_type(c.params[0])});
+  return new __WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), ${c2pointer_type(c.params[0])});
 }
 `
 	env.c2jsTable[key] = c2ptr
@@ -298,11 +299,11 @@ function ${c2ptr}(${ptr}) {
       const arrsize = c.params[1]
       const typesize = getSizeof(env, c)
 
-      const convert = c2js(env, elemtype)
+      const convert = c2js(env, elemtype), unconvert = js2c(env, elemtype)
       env.jsBuffer += `
 function ${c2arr}(${cArray}) {
   let ${array} = [];
-  let ${ptr} = new __WasmPointer(${cArray}, ${convert}, ${typesize}(), ${c2pointer_type(elemtype)});
+  let ${ptr} = new __WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), ${c2pointer_type(elemtype)});
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
     ${array}[${idx}] = ${convert}(${ptr}.offset(idx));
   }
@@ -363,13 +364,8 @@ function ${c2enum}(${name}) {
 	methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${accessors[field]['setter']}(${obj}, ${value})))`)
       }
 
-      /* HACK: We pass both the dereferenced version and the pointer
-       * in `__WasmPointer.derefAndConvert` so that we can preserve
-       * the pointer semantics when the user tries to access the
-       * values. TODO: Change this to something more sensible once we
-       * decide upon the final struct pointer semantics. */
       env.jsBuffer += `
-function ${c2obj}(${gensym('unused')}, ${obj}) {
+function ${c2obj}(${obj}) {
   return {
     ${methods.join(',\n    ')}
   };
@@ -417,11 +413,32 @@ export function js2c(env, c) {
     case 'f64':
       return id
     case 'pointer':
-      // TODO: If it's a string we'll need to allocate memory here
-      const ptr = gensym('pointer')
-      return `(${ptr} => ${ptr}.addr)`
+      switch (c.params[0].type) {
+      case 'char':
+	// NOTE: We want to make sure that the user frees this at some point!
+	const str = gensym('string'), charPtr = gensym('charPtr'), idx = gensym('index')
+	return `
+(${str} => {
+  const ${charPtr} = new __WasmPointer(
+    __wasm_exports.malloc(${str}.length + 1),
+    ${c2js(env, c.params[0])},
+    ${js2c(env, c.params[0])},
+    8,
+    'i8'
+  );
+  for (let ${idx} = 0; ${idx} < ${str}.length; ${idx}++) {
+    ${charPtr}.offset(${idx}).assign(${str}[${idx}]);
+  }
+  // Make sure we write a null terminator & don't try to call a method on 0
+  ${charPtr}.offset(${str}.length).assign('\0');
+}
+`
+      default:
+	const ptr = gensym('pointer')
+	return `(${ptr} => ${ptr}.addr)`
+      }
     case 'array':
-      // TODO: Again, we'll need to allocate memory
+      // TODO: Again, we'll need to allocate memory. Also, we have to figure out how to memcpy stuff.
       break
     case 'functionPointer':
       /* Multi-step process:

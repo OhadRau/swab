@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-import { c2js } from './types.js'
+import { c2js, js2c } from './types.js'
 import { type2ctype, type2cdecl, wrapAccessors, wrapSizeof, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv, gensym } from './env.js'
@@ -32,7 +32,7 @@ function genBindings(configFile, wasmFile) {
     }
 
     const params = fn.parameters.map(_ => gensym('param'))
-    const args = params.map((param, index) => `${c2js(env, fn.parameters[index])}(${param})`)
+    const args = params.map((param, index) => `${js2c(env, fn.parameters[index])}(${param})`)
 
     let wrapReturn = c2js(env, fn.returnType)
 
@@ -50,7 +50,8 @@ function ${functionName}(${params.join(',')}) {
   return env
 }
 
-const env = genBindings('./test/basic-config.json', 'library.wasm')
+//const env = genBindings('./test/basic-config.json', 'library.wasm')
+const env = genBindings('./test/libsass-config.json', 'library.wasm')
 console.log(env.jsBuffer)
 console.log('========================================================')
 console.log(env.cBuffer)
