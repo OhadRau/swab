@@ -6,7 +6,7 @@
     "mylib.h"
   ],
   "types": {
-    "version_info": {
+    "struct version_info": {
       "type": "struct",
       "params": {
         "major": { "type": "int" },
@@ -14,18 +14,18 @@
         "patch": { "type": "int" }
       }
     },
-    "options": {
+    "struct options": {
       "type": "struct",
       "params": {
         "size": { "type": "int" },
-        "version": { "type": "pointer", "params": [ { "type": "version_info" } ] }
+        "version": { "type": "pointer", "params": [ { "type": "struct version_info" } ] }
       }
     }
   },
   "functions": {
     "make_options": {
       "parameters": [ { "type": "int" } ],
-      "returnType": { "type": "pointer", "params": [ { "type": "options" } ] }
+      "returnType": { "type": "pointer", "params": [ { "type": "struct options" } ] }
     },
     "create_f32_array": {
       "parameters": [],

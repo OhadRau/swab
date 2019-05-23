@@ -13,13 +13,9 @@
 
                                                  - - - C L E A N U P - - -
 - Minor changes
-  * Better getter/setter names (getter_type_field/setter_type_field)
-  * Don't always substitute in C types
-    - For this we'll need to know `struct x` vs `typedef struct x` (just ask the user?)
   * Clean up JSON format
     - Inconsistent b/w params[] and params{}, why not just name each one uniquely based on context?
   * Decide whether to use ES6 module syntax in output & add `export`s
-  * Generate import/export lists for compilers
   * Generate constructors/destructors for structs (what about unions?)
 
 
@@ -38,5 +34,7 @@
     - Easy way:
        * Keep a stack of visited types
        * If current type in stack, recursion found
-
-
+- Don't always substitute in C types
+  * For this we'll need to know `struct x` vs `typedef struct x` (just ask the user?)
+- Generate import/export lists for compilers
+- Better getter/setter names (getter_type_field/setter_type_field)

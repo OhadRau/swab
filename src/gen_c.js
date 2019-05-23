@@ -1,4 +1,5 @@
 import { gensym } from './env.js'
+import { ctypes } from './types.js'
 
 // Pretty-print types to an abstract declarator
 // http://c0x.coding-guidelines.com/6.7.6.html (yeah, idk either)
@@ -15,6 +16,11 @@ export function type2ctype(type, buffer = '') {
    * tree.
    */
   // Make sure to #include <stdbool.h> & #include <stdint.h>
+
+  // If we substituted the type already, go with the unsubstituted version
+  if (type.orig) {
+    return type2ctype(type.orig, buffer);
+  }
   switch (type.type) {
     case 'bool':
       return `bool ${buffer}`
@@ -87,6 +93,18 @@ export function type2cFnDecl(name, argTypes, argNames, retType) {
 }
 
 export function wrapAccessors(env, type) {
+  const isI64 = t => t.type === 'i64' || t.type === 'u64'
+  const accessorName = (obj, field) => {
+    const unsubbed = obj.orig || obj;
+    if (!(unsubbed.type in ctypes)) {
+      // If the name is like `struct t` we want to only take the `t`
+      const components = unsubbed.type.split(/\s+/g)
+      const name = components[components.length - 1]
+      return [`${name}_get_${field}`, `${name}_set_${field}`]
+    } else {
+      return [`get_${field}`, `set_${field}`]
+    }
+  }
   switch (type.type) {
     case 'pointer':
       env.accessorTable[JSON.stringify(type)] = wrapAccessors(env, type.params[0])
@@ -95,13 +113,15 @@ export function wrapAccessors(env, type) {
       let accessors = {}
       for (let field in type.params) {
         // Check if the field is i64, if so wrap the i64 access
-	const isI64 = t => t.type === 'i64' || t.type === 'u64'
-	if (isI64(type.params[field])) {
-	  const fieldType = { type: '__wasm_big_int', params: [] }
-	  const ptrType = { type: 'pointer', params: [type] }
-	  const getter = gensym('getter'), setter = gensym('setter')
-	  const obj = gensym('object'), value = gensym('value')
-	  env.cBuffer += `
+        if (isI64(type.params[field])) {
+          const fieldType = { type: '__wasm_big_int', params: [] }
+          const ptrType = { type: 'pointer', params: [type] }
+
+	  const [getterName, setterName] = accessorName(type, field)
+          const getter = gensym(getterName), setter = gensym(setterName)
+
+          const obj = gensym('object'), value = gensym('value')
+          env.cBuffer += `
 ${type2cFnDecl(getter, [ptrType], [obj], fieldType)} {
   int64_t ${value} = ${obj}->${field};
   return __js_new_big_int(${value} >> 32, ${value} & 0xFFFFFFFF);
@@ -112,13 +132,16 @@ ${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', param
   ${obj}->${field} |= __js_big_int_lower(${value});
 }
 `
-	  accessors[field] = { getter, setter }
-	} else {
-	  const ptrType = { type: 'pointer', params: [type] }
-	  const getter = gensym('getter'), setter = gensym('setter')
-	  const obj = gensym('object'), value = gensym('value')
-	  // TODO: Make this code work properly if we're dealing with a value that needs to be copied
-	  env.cBuffer += `
+          accessors[field] = { getter, setter }
+        } else {
+          const ptrType = { type: 'pointer', params: [type] }
+
+	  const [getterName, setterName] = accessorName(type, field)
+          const getter = gensym(getterName), setter = gensym(setterName)
+
+          const obj = gensym('object'), value = gensym('value')
+          // TODO: Make this code work properly if we're dealing with a value that needs to be copied
+          env.cBuffer += `
 ${type2cFnDecl(getter, [ptrType], [obj], type.params[field])} {
   return ${obj}->${field};
 }
@@ -127,8 +150,8 @@ ${type2cFnDecl(setter, [ptrType, type.params[field]], [obj, value], { type: 'voi
   ${obj}->${field} = ${value};
 }
 `
-	  accessors[field] = { getter, setter }
-	}
+          accessors[field] = { getter, setter }
+        }
       }
 
       env.accessorTable[JSON.stringify(type)] = accessors
@@ -151,6 +174,10 @@ size_t ${wrapper}() {
 }
 
 export function wrapI64Fn(env, fn, argTypes, retType) {
+  env.imports.add("__js_new_big_int")
+  env.imports.add("__js_big_int_upper")
+  env.imports.add("__js_big_int_lower")
+
   // TODO: What do we do for function pointers?
   const wrapper = gensym('i64_wrapper')
   env.i64Table[fn] = wrapper

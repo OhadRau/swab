@@ -47,24 +47,8 @@ function __wasm_identity(__x) {
 #include <stdint.h>
 #include <stdlib.h>
 `,
-    imports: {
-      "__js_new_big_int": {
-	parameters: [
-	  { type: "i32" },
-	  { type: "i32" }
-	],
-	returnType: { type: "__wasm_big_int" }
-      },
-      "__js_big_int_upper": {
-	parameters: [ { type: "__wasm_big_int" } ],
-	returnType: { type: "i32" }
-      },
-      "__js_big_int_lower": {
-	parameters: [ { type: "__wasm_big_int" } ],
-	returnType: { type: "i32" }
-      }
-    },
-    exports: {}
+    imports: new Set([]),
+    exports: new Set([])
   }
 }
 

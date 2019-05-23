@@ -53,27 +53,29 @@ export function substitute(env, type) {
     case 'void':
       return type;
     case 'pointer':
-      return { type: type.type, params: [substitute(env, type.params[0])] }
+      return { type: type.type, params: [substitute(env, type.params[0])], orig: (type.orig || type) }
     case 'array':
-      return { type: type.type, params: [substitute(env, type.params[0]), type.params[1]] }
+      return { type: type.type, params: [substitute(env, type.params[0]), type.params[1]], orig: (type.orig || type) }
     case 'functionPointer':
       return { type: 'functionPointer', params: [
 	[ type.params[0].map(subtype => substitute(env, subtype)) ],
 	[ substitute(env, type.params[1]) ]
-      ] }
+      ], orig: (type.orig || type) }
     case 'struct':
     case 'union':
       const newFields = {}
       for (let field in type.params) {
 	newFields[field] = substitute(env, type.params[field])
       }
-      return { type: type.type, params: newFields }
+      return { type: type.type, params: newFields, orig: (type.orig || type) }
     default:
       if (type.type in env.substitutions) {
 	// In order to not infinite loop on recursion, we don't keep substituting
-	return env.substitutions[type.type]
+	let result = env.substitutions[type.type]
+	result.orig = type.orig || type
+	return result
       } else {
-	return { type: 'void', params: [] }
+	return { type: 'void', params: [], orig: (type.orig || type) }
       }
   }
 }
@@ -130,9 +132,12 @@ export function getSizeof(env, c) {
   let type = substitute(env, c)
   let key = JSON.stringify(type)
   if (key in env.sizeofTable) {
+    exports.add(env.sizeofTable[key])
     return `__wasm_exports.${env.sizeofTable[key]}`
   } else {
-    return `__wasm_exports.${wrapSizeof(env, type)}`
+    const sizeof = wrapSizeof(env, type)
+    env.exports.add(sizeof)
+    return `__wasm_exports.${sizeof}`
   }
 }
 
@@ -360,8 +365,13 @@ function ${c2enum}(${name}) {
       for (let field in c.params) {
 	const value = gensym('value')
 	const to_js = c2js(env, c.params[field]), to_c = js2c(env, c.params[field])
-	methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${accessors[field]['getter']}(${obj})))`)
-	methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${accessors[field]['setter']}(${obj}, ${value})))`)
+
+	const getter = accessors[field]['getter'], setter = accessors[field]['setter']
+	env.exports.add(getter)
+	env.exports.add(setter)
+
+	methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
+	methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${setter}(${obj}, ${value})))`)
       }
 
       env.jsBuffer += `
@@ -417,6 +427,7 @@ export function js2c(env, c) {
       case 'char':
 	// NOTE: We want to make sure that the user frees this at some point!
 	const str = gensym('string'), charPtr = gensym('charPtr'), idx = gensym('index')
+	env.exports.add('malloc')
 	return `
 (${str} => {
   const ${charPtr} = new __WasmPointer(
