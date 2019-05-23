@@ -15,7 +15,6 @@
 - Minor changes
   * Clean up JSON format
     - Inconsistent b/w params[] and params{}, why not just name each one uniquely based on context?
-  * Decide whether to use ES6 module syntax in output & add `export`s
   * Generate constructors/destructors for structs (what about unions?)
 
 
@@ -38,3 +37,4 @@
   * For this we'll need to know `struct x` vs `typedef struct x` (just ask the user?)
 - Generate import/export lists for compilers
 - Better getter/setter names (getter_type_field/setter_type_field)
+- Decide whether to use ES6 module syntax in output & add `export`s

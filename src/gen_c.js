@@ -117,7 +117,7 @@ export function wrapAccessors(env, type) {
           const fieldType = { type: '__wasm_big_int', params: [] }
           const ptrType = { type: 'pointer', params: [type] }
 
-	  const [getterName, setterName] = accessorName(type, field)
+          const [getterName, setterName] = accessorName(type, field)
           const getter = gensym(getterName), setter = gensym(setterName)
 
           const obj = gensym('object'), value = gensym('value')
@@ -136,7 +136,7 @@ ${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', param
         } else {
           const ptrType = { type: 'pointer', params: [type] }
 
-	  const [getterName, setterName] = accessorName(type, field)
+          const [getterName, setterName] = accessorName(type, field)
           const getter = gensym(getterName), setter = gensym(setterName)
 
           const obj = gensym('object'), value = gensym('value')

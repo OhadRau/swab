@@ -37,7 +37,7 @@ function genBindings(configFile, wasmFile) {
     const wrapReturn = c2js(env, fn.returnType)
 
     env.jsBuffer += `
-function ${functionName}(${params.join(',')}) {
+export function ${functionName}(${params.join(',')}) {
   return ${wrapReturn}(
     __wasm_exports.${functionName}(
       ${args.join(',')}
