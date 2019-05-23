@@ -274,13 +274,46 @@ function ${c2numptr}(${numptr}) {
 `
         env.c2jsTable[key] = c2numptr
         return c2numptr
+      case 'struct':
+      case 'union':
+        /* As described in gen_c.js, we explicitly handle the separate case of reference types vs.
+         * value types here. The primary reason in this case is caching, as we don't want to cache
+         * the pointer version of the accessors and the value version of the accessors under the same
+         * name. */
+        const key = JSON.stringify(c)
+        const subtype = c.params[0]
+
+        const accessors = getAccessors(env, c)
+
+        let methods = []
+        const c2obj = gensym('c2object'), obj = gensym('object')
+        for (let field in subtype.params) {
+          const value = gensym('value')
+          const to_js = c2js(env, subtype.params[field]), to_c = js2c(env, subtype.params[field])
+
+          const getter = accessors[field]['getter'], setter = accessors[field]['setter']
+
+          env.exports.add(getter)
+          methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
+
+          env.exports.add(setter)
+          methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${setter}(${obj}, ${value})))`)
+        }
+
+        env.jsBuffer += `
+function ${c2obj}(${obj}) {
+  return {
+    ${methods.join(',\n    ')}
+  };
+}
+`
+        env.c2jsTable[key] = c2obj
+        return c2obj
       case 'bool':
       case 'char':
       case 'pointer':
       case 'functionPointer':
       case 'array':
-      case 'struct':
-      case 'union':
       case 'enum':
       case 'void':
         const c2ptr = gensym('c2ptr'), ptr = gensym('ptr')
@@ -350,14 +383,6 @@ function ${c2enum}(${name}) {
       return c2enum
     case 'struct':
     case 'union':
-      /* So interesting question here: setters really only make
-       * sense on pointers (otherwise the setter won't actually
-       * do anything). However, here we're generating accessors
-       * for a non-pointer type. The proper behavior is probably
-       * to only support getters/setters on pointers, but what do
-       * we do instead in this case? If it's a non-pointer type
-       * maybe we want to generate only getters and convert it to
-       * a JS object? */
       const accessors = getAccessors(env, c)
 
       let methods = []
@@ -366,12 +391,10 @@ function ${c2enum}(${name}) {
         const value = gensym('value')
         const to_js = c2js(env, c.params[field]), to_c = js2c(env, c.params[field])
 
-        const getter = accessors[field]['getter'], setter = accessors[field]['setter']
-        env.exports.add(getter)
-        env.exports.add(setter)
+        const getter = accessors[field]['getter']
 
+        env.exports.add(getter)
         methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
-        methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${setter}(${obj}, ${value})))`)
       }
 
       env.jsBuffer += `
@@ -493,8 +516,12 @@ function ${c2fp}(${fp}) {
       env.js2cTable[key] = c2fp
       return fp2c
     case 'enum':
+      // TODO: Reverse the enum definition and index into that
     case 'struct':
     case 'union':
+      // TODO: Add struct+union constructors (and destructors)
+      // QUESTION: Maybe we should just write to a pointer? Or else create a copy?
+      // A wrapper function for the & operator would help a lot if copying
     case 'void':
       return id
     default:

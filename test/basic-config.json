@@ -27,6 +27,10 @@
       "parameters": [ { "type": "int" } ],
       "returnType": { "type": "pointer", "params": [ { "type": "struct options" } ] }
     },
+    "make_version_info": {
+      "parameters": [ { "type": "int" }, { "type": "int"}, { "type": "int" } ],
+      "returnType": { "type": "struct version_info" }
+    },
     "create_f32_array": {
       "parameters": [],
       "returnType": { "type": "array", "params": [ { "type": "float" }, 16 ] }
