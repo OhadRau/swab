@@ -324,10 +324,10 @@ function ${c2numptr}(${numptr}) {
           const getter = accessors[field]['getter'], setter = accessors[field]['setter']
 
           env.exports.add(getter)
-          methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
+          methods.push(`get ${field} () { return ${to_js}(__wasm_exports.${getter}(${obj})); }`)
 
           env.exports.add(setter)
-          methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${setter}(${obj}, ${value})))`)
+          methods.push(`set ${field}(${value}) { ${to_c}(__wasm_exports.${setter}(${obj}, ${value})); }`)
         }
 
         const destroy = getDestructor(env, c)
@@ -438,7 +438,7 @@ function ${c2enum}(${name}) {
         const getter = accessors[field]['getter']
 
         env.exports.add(getter)
-        methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
+        methods.push(`get ${field}() { ${to_js}(__wasm_exports.${getter}(${obj})); }`)
       }
 
       const destroy = getDestructor(env, c)
@@ -486,10 +486,10 @@ export function js2c(env, c) {
     case 'u64':
       // TODO: This case is tricky. We might need to generate more C
       // I believe we need to split back into upper/lower int32s here and wrap the other function
-      // Solution = wrapI64'ing the other function and returning an [upper, lower] array here?
+      // Solution = wrapI64'ing the other function and returning an [upper, lower] array here? Or returning a BigInt?
       break
     case 'i64':
-      return id
+      break
     case 'f32':
       return id
     case 'f64':

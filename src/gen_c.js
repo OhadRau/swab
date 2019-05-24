@@ -166,7 +166,7 @@ ${type2cFnDecl(constructor, [], [], type)} {
 
 ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
   // If struct, free all the fields that are pointers
-  ${freeFields.join('\n')}
+  ${freeFields.join('\n  ')}
   free(${obj});
 }
 `
@@ -228,7 +228,7 @@ ${type2cFnDecl(constructor, params, names, type)} {
 
 ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
   // If struct, free all the fields that are pointers
-  ${freeFields.join('\n')}
+  ${freeFields.join('\n  ')}
 }
 `
     env.constructorTable[key] = constructor
