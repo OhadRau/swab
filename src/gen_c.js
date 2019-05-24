@@ -92,11 +92,39 @@ export function type2cFnDecl(name, argTypes, argNames, retType) {
   return type2cdecl(retType, `${name}(${argDecls.join(',')})`)
 }
 
+export function wrapCopy(env, type) {
+  const key = JSON.stringify(type)
+
+  const copyName = (obj) => {
+    const unsubbed = obj.orig || obj;
+    if (!(unsubbed.type in ctypes)) {
+      // If the name is like `struct t` we want to only take the `t`
+      const components = unsubbed.type.split(/\s+/g)
+      const name = components[components.length - 1]
+      return `copy_${name}`
+    } else {
+      return `copy`
+    }
+  }
+
+  const copy = gensym(copyName(type)), src = gensym('src'), dst = gensym('dest')
+
+  const ptrType = { type: 'pointer', params: [ type ] }
+
+  env.cBuffer += `
+${type2cFnDecl(copy, [ptrType, type], [dst, src], { type: 'void' })} {
+  memcpy(${dst}, &${src}, sizeof(${type2ctype(type)}));
+}
+`
+  env.copyTable[key] = copy
+  return copy
+}
+
 // QUESTION: Should these take parameters or return uninitialized data?
 // FWIW Uninitialized makes MUCH more sense for unions
 export function wrapConstructorDestructor(env, type) {
   const isI64 = t => t.type === 'i64' || t.type === 'u64'
-  const constructorDestructorName = (obj, field) => {
+  const constructorDestructorName = (obj) => {
     const unsubbed = obj.orig || obj;
     if (!(unsubbed.type in ctypes)) {
       // If the name is like `struct t` we want to only take the `t`
@@ -192,6 +220,7 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
       }
     }
 
+    // FIXME: This solution isn't really scalable for unions, as it can overwrite a parameter. How do we improve?
         env.cBuffer += `
 ${type2cFnDecl(constructor, params, names, type)} {
   return (${type2ctype(type)}) { ${assignments.join(',')} };

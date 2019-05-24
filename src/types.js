@@ -171,6 +171,16 @@ export function getDestructor(env, c) {
   }
 }
 
+export function getCopy(env, c) {
+  let type = substitute(env, c)
+  let key = JSON.stringify(type)
+  if (key in env.copyTable) {
+    return env.copyTable[key]
+  } else {
+    return wrapCopy(env, type)
+  }
+}
+
 /* Generate code for type conversion from C -> JS
  * @return Conversion code (string) if conversion is necessary, otherwise `false`
  */
@@ -504,6 +514,8 @@ export function js2c(env, c) {
   }
   // Make sure we write a null terminator & don't try to call a method on 0
   ${charPtr}.offset(${str}.length).assign('\0');
+
+  return ${charPtr};
 }
 `
       default:
@@ -511,7 +523,28 @@ export function js2c(env, c) {
         return `(${ptr} => ${ptr}.addr)`
       }
     case 'array':
-      // TODO: Again, we'll need to allocate memory. Also, we have to figure out how to memcpy stuff.
+      const copy = getCopy(env, c)
+      env.exports.add('malloc')
+      env.exports.add(copy)
+
+      const arr = gensym('array'), arrPtr = gensym('arrayPointer'), idx = gensym('index')
+
+      return `
+(${arr} => {
+  const ${arrPtr} = new __WasmPointer(
+    __wasm_exports.malloc(${arr}.length),
+    ${c2js(env, c)},
+    ${js2c(env, c)},
+    ${getSizeof(env, c)}(),
+    ${type2pointer_type(env, c)}
+  );
+  for (let ${idx} = 0; ${idx} < ${arr}.length; ${idx}++) {
+    ${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
+  }
+
+  return ${arrPtr};
+}
+`
       break
     case 'functionPointer':
       /* Multi-step process:

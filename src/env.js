@@ -5,6 +5,7 @@ export function createEnv(wasmFile) {
     accessorTable: {},
     constructorTable: {},
     destructorTable: {},
+    copyTable: {},
     sizeofTable: {},
     i64Table: {},
     c2jsTable: {},
@@ -48,6 +49,7 @@ function __wasm_identity(__x) {
 #include "bindlib.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <memcpy.h>
 `,
     imports: new Set([]),
     exports: new Set([])
