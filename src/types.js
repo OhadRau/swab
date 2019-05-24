@@ -306,7 +306,7 @@ function ${c2numptr}(${numptr}) {
         const accessors = getAccessors(env, c)
 
         let methods = []
-        const c2obj = gensym('c2object'), obj = gensym('object')
+        const c2obj = gensym('c2object'), addr = gensym('address'), obj = gensym('object')
         for (let field in subtype.params) {
           const value = gensym('value')
           const to_js = c2js(env, subtype.params[field]), to_c = js2c(env, subtype.params[field])
@@ -325,11 +325,20 @@ function ${c2numptr}(${numptr}) {
           methods.push(`destroy: (() => __wasm_exports.${destroy}(${obj}))`)
         }
 
+        // QUESTION: Do we want to wrap this in a __WasmPointer?
+        // Pros: ability to offset, ability to manually free, more consistency with pointers
+        // Cons: slightly more confusing to the user (x.free() vs. x.deref().destroy()), .assign doesn't make much sense(?)
         env.jsBuffer += `
-function ${c2obj}(${obj}) {
-  return {
-    ${methods.join(',\n    ')}
-  };
+function ${c2obj}(${addr}) {
+  return new __WasmPointer(
+    ${addr},
+    (${obj} => {
+      ${methods.join(',\n      ')}
+    }),
+    ${js2c(env, c)},
+    ${getSizeof(env, c.params[0])}(),
+    '${c2pointer_type(c.params[0])}'
+  );
 }
 `
         env.c2jsTable[key] = c2obj
