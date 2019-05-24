@@ -125,9 +125,9 @@ export function wrapConstructorDestructor(env, type) {
       case 'struct':
         const freeFields = []
         for (let field in subtype.params) {
-          const fieldType = subtype.params[field];
+          const fieldType = subtype.params[field]
           if (fieldType.type === 'pointer') {
-            freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field})`)
+            freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field});`)
           }
         }
 
@@ -138,7 +138,7 @@ ${type2cFnDecl(constructor, [], [], type)} {
 
 ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
   // If struct, free all the fields that are pointers
-  ${freeFields.join(';\n')}
+  ${freeFields.join('\n')}
   free(${obj});
 }
 `
@@ -176,22 +176,30 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
         return [constructor, destructor]
       }
   case 'struct':
+    let params = [], names = [], assignments = []
     const freeFields = []
     for (let field in type.params) {
-      const fieldType = type.params[field];
+      const fieldType = type.params[field]
+      params.push(fieldType)
+
+      const name = gensym(field)
+      names.push(name)
+
+      assignments.push(`.${field} = ${name}`)
+
       if (fieldType.type === 'pointer') {
-        freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field})`)
+        freeFields.push(`if (${obj}.${field}) ${getDestructor(env, fieldType)}(${obj}.${field});`)
       }
     }
 
         env.cBuffer += `
-${type2cFnDecl(constructor, [], [], type)} {
-  return (${type2ctype(type)}) {};
+${type2cFnDecl(constructor, params, names, type)} {
+  return (${type2ctype(type)}) { ${assignments.join(',')} };
 }
 
 ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
   // If struct, free all the fields that are pointers
-  ${freeFields.join(';\n')}
+  ${freeFields.join('\n')}
 }
 `
     env.constructorTable[key] = constructor

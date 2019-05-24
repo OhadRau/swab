@@ -41,9 +41,16 @@ function genBindings(configFile, wasmFile) {
     const typeSegments = type.split(/\s+/g)
     let typeName = typeSegments[typeSegments.length - 1]
 
+    const fields = []
+    const defaultedFields = []
+    for (let field in typeInfo.params) {
+      fields.push(field)
+      defaultedFields.push(`${field} ? ${js2c(env, typeInfo.params[field])}(${field}) : 0`)
+    }
+
     env.jsBuffer += `
-export function create_${typeName}() {
-  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}());
+export function create_${typeName}({${fields.join(',')}}) {
+  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}(${defaultedFields.join(',')}));
 }
 
 export function create_${typeName}_ptr() {

@@ -564,9 +564,16 @@ function ${c2fp}(${fp}) {
       return `(${name} => ${JSON.stringify(enum2num)}[${name}])`
     case 'struct':
     case 'union':
-      // TODO: Add struct+union constructors (and destructors)
       // QUESTION: Maybe we should just write to a pointer? Or else create a copy?
       // A wrapper function for the & operator would help a lot if copying
+      // NOTE: We write every union field here: always works. We could write just one, but it would have to be the largest
+      const obj = gensym('object')
+
+      let params = []
+      for (let field in c.params) {
+        params.push(`${field}: ${obj}.get_${field}()`)
+      }
+      return `(${obj} => ${getConstructor(env, c)}({${params.join(',')}})`
     case 'void':
       return id
     default:
