@@ -38,6 +38,18 @@
     "zzz": {
       "returnType": { "type": "pointer", "params": [ { "type": "int" }  ] },
       "parameters": []
+    },
+    "addI64": {
+      "returnType": { "type": "int64_t" },
+      "parameters": [ { "type": "i64" }, { "type": "i64" } ]
+    },
+    "arrayStuff": {
+      "returnType": { "type": "array", "params": [ { "type": "int" }, 3 ] },
+      "parameters": [ { "type": "array", "params": [ { "type": "int" }, 3 ] } ]
+    },
+    "stringStuff": {
+      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] },
+      "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] } ]
     }
   }
 }

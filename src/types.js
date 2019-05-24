@@ -1,5 +1,5 @@
 import { gensym } from './env.js'
-import { type2ctype, wrapSizeof, wrapAccessors, wrapConstructorDestructor } from './gen_c.js'
+import { type2ctype, wrapSizeof, wrapAccessors, wrapConstructorDestructor, wrapCopy } from './gen_c.js'
 
 export const jstypes = Object.freeze([
   'boolean',
@@ -132,7 +132,7 @@ export function getSizeof(env, c) {
   let type = substitute(env, c)
   let key = JSON.stringify(type)
   if (key in env.sizeofTable) {
-    exports.add(env.sizeofTable[key])
+    env.exports.add(env.sizeofTable[key])
     return `__wasm_exports.${env.sizeofTable[key]}`
   } else {
     const sizeof = wrapSizeof(env, type)
@@ -539,10 +539,10 @@ export function js2c(env, c) {
 (${arr} => {
   const ${arrPtr} = new __WasmPointer(
     __wasm_exports.malloc(${arr}.length),
-    ${c2js(env, c)},
-    ${js2c(env, c)},
-    ${getSizeof(env, c)}(),
-    ${type2pointer_type(env, c)}
+    ${c2js(env, c.params[0])},
+    ${js2c(env, c.params[0])},
+    ${getSizeof(env, c.params[0])}(),
+    ${c2pointer_type(c.params[0])}
   );
   for (let ${idx} = 0; ${idx} < ${arr}.length; ${idx}++) {
     ${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
