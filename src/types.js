@@ -297,6 +297,7 @@ function ${c2str}(${charPtr}) {
         // If type is numeric, don't convert signded-ness, as the __WasmPointer impl covers this
         // I *think* pointers and arrays are ok because we don't do any sign changing for those
         const c2numptr = gensym('c2numptr'), numptr = gensym('numptr')
+        env.exports.add('free')
         env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
   return new __WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
@@ -338,6 +339,7 @@ function ${c2numptr}(${numptr}) {
         // QUESTION: Do we want to wrap this in a __WasmPointer?
         // Pros: ability to offset, ability to manually free, more consistency with pointers
         // Cons: slightly more confusing to the user (x.free() vs. x.deref().destroy()), .assign doesn't make much sense(?)
+        env.exports.add('free')
         env.jsBuffer += `
 function ${c2obj}(${addr}) {
   return new __WasmPointer(
@@ -363,6 +365,7 @@ function ${c2obj}(${addr}) {
         const c2ptr = gensym('c2ptr'), ptr = gensym('ptr')
         const convert = c2js(env, c.params[0])
         const unconvert = js2c(env, c.params[0])
+        env.exports.add('free')
         env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
   return new __WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
@@ -382,6 +385,7 @@ function ${c2ptr}(${ptr}) {
       const typesize = getSizeof(env, c)
 
       const convert = c2js(env, elemtype), unconvert = js2c(env, elemtype)
+      env.exports.add('free')
       env.jsBuffer += `
 function ${c2arr}(${cArray}) {
   let ${array} = [];
@@ -500,6 +504,7 @@ export function js2c(env, c) {
         // NOTE: We want to make sure that the user frees this at some point!
         const str = gensym('string'), charPtr = gensym('charPtr'), idx = gensym('index')
         env.exports.add('malloc')
+        env.exports.add('free')
         return `
 (${str} => {
   const ${charPtr} = new __WasmPointer(
@@ -525,6 +530,7 @@ export function js2c(env, c) {
     case 'array':
       const copy = getCopy(env, c)
       env.exports.add('malloc')
+      env.exports.add('free')
       env.exports.add(copy)
 
       const arr = gensym('array'), arrPtr = gensym('arrayPointer'), idx = gensym('index')
