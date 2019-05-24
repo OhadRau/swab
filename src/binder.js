@@ -26,7 +26,16 @@ function genBindings(configFile, wasmFile) {
 
   // Generate constructors (& in turn generate accessors/destructors thru c2js)
   for (let type in config.types) {
-    const constructor = getConstructor(env, config.types[type])
+    // Skip non-union/non-struct types
+    const typeInfo = config.types[type]
+    const ptrTypeInfo = { type: 'pointer', params: [ typeInfo ] }
+
+    if (typeInfo.type !== 'union' && typeInfo.type !== 'struct') {
+      continue
+    }
+
+    const constructor = getConstructor(env, typeInfo)
+    const ptrConstructor = getConstructor(env, ptrTypeInfo)
 
     // Take only the last portion of the type (e.g. struct x => x)
     const typeSegments = type.split(/\s+/g)
@@ -34,10 +43,15 @@ function genBindings(configFile, wasmFile) {
 
     env.jsBuffer += `
 export function create_${typeName}() {
-  return ${c2js(env, config.types[type])}(__wasm_exports.${constructor}());
+  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}());
+}
+
+export function create_${typeName}_ptr() {
+  return ${c2js(env, ptrTypeInfo)}(__wasm_exports.${ptrConstructor}());
 }
 `
     env.exports.add(constructor)
+    env.exports.add(ptrConstructor)
   }
 
   for (let functionName in config.functions) {

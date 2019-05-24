@@ -19,6 +19,7 @@
     - Raw pointer/string pointer/buffer pointer
     - Allows you to override the representation for char *
   * Finish js2c
+  * Make sure constructors/destructors don't shadow C exports
 
 
 

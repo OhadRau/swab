@@ -289,7 +289,7 @@ function ${c2str}(${charPtr}) {
         const c2numptr = gensym('c2numptr'), numptr = gensym('numptr')
         env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
-  return new __WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}, ${c2pointer_type(c.params[0])});
+  return new __WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
 }
 `
         env.c2jsTable[key] = c2numptr
@@ -346,7 +346,7 @@ function ${c2obj}(${obj}) {
         const unconvert = js2c(env, c.params[0])
         env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
-  return new __WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), ${c2pointer_type(c.params[0])});
+  return new __WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
 }
 `
         env.c2jsTable[key] = c2ptr
@@ -366,7 +366,7 @@ function ${c2ptr}(${ptr}) {
       env.jsBuffer += `
 function ${c2arr}(${cArray}) {
   let ${array} = [];
-  let ${ptr} = new __WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), ${c2pointer_type(elemtype)});
+  let ${ptr} = new __WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), '${c2pointer_type(elemtype)}');
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
     ${array}[${idx}] = ${convert}(${ptr}.offset(idx));
   }
@@ -546,7 +546,13 @@ function ${c2fp}(${fp}) {
       env.js2cTable[key] = c2fp
       return fp2c
     case 'enum':
-      // TODO: Reverse the enum definition and index into that
+      // Reverse the enum definition and index into that
+      const enum2num = {}
+      for (let i in c.params) {
+        enum2num[c.params[i]] = i
+      }
+      const name = gensym('enum')
+      return `(${name} => ${JSON.stringify(enum2num)}[${name}])`
     case 'struct':
     case 'union':
       // TODO: Add struct+union constructors (and destructors)
