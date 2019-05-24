@@ -3,6 +3,8 @@ export function createEnv(wasmFile) {
     wasmFile,
     wrapperCache: {},
     accessorTable: {},
+    constructorTable: {},
+    destructorTable: {},
     sizeofTable: {},
     i64Table: {},
     c2jsTable: {},

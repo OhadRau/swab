@@ -1,5 +1,5 @@
 import { gensym } from './env.js'
-import { ctypes } from './types.js'
+import { ctypes, getDestructor } from './types.js'
 
 // Pretty-print types to an abstract declarator
 // http://c0x.coding-guidelines.com/6.7.6.html (yeah, idk either)
@@ -92,6 +92,125 @@ export function type2cFnDecl(name, argTypes, argNames, retType) {
   return type2cdecl(retType, `${name}(${argDecls.join(',')})`)
 }
 
+// QUESTION: Should these take parameters or return uninitialized data?
+// FWIW Uninitialized makes MUCH more sense for unions
+export function wrapConstructorDestructor(env, type) {
+  const isI64 = t => t.type === 'i64' || t.type === 'u64'
+  const constructorDestructorName = (obj, field) => {
+    const unsubbed = obj.orig || obj;
+    if (!(unsubbed.type in ctypes)) {
+      // If the name is like `struct t` we want to only take the `t`
+      const components = unsubbed.type.split(/\s+/g)
+      const name = components[components.length - 1]
+      return [`create_${name}`, `delete_${name}`]
+    } else {
+      return [`create`, `delete`]
+    }
+  }
+
+  const key = JSON.stringify(type)
+
+  const [constructorName, destructorName] =
+        type.type === 'pointer' ? constructorDestructorName(type.params[0]) : constructorDestructorName(type)
+
+  const constructor = gensym(constructorName), destructor = gensym(destructorName)
+
+  const obj = gensym('object')
+
+  switch (type.type) {
+    case 'pointer':
+      const subtype = type.params[0]
+
+      switch (subtype.type) {
+      case 'struct':
+        const freeFields = []
+        for (let field in subtype.params) {
+          const fieldType = subtype.params[field];
+          if (fieldType.type === 'pointer') {
+            freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field})`)
+          }
+        }
+
+        env.cBuffer += `
+${type2cFnDecl(constructor, [], [], type)} {
+  return (${type2ctype(type)}) malloc(sizeof(${type2ctype(type)}));
+}
+
+${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+  // If struct, free all the fields that are pointers
+  ${freeFields.join(';\n')}
+  free(${obj});
+}
+`
+        env.constructorTable[key] = constructor
+        env.destructorTable[key] = destructor
+        return [constructor, destructor]
+      case 'union':
+        /* Unions are tricky, because think of the type:
+         *   union { int *m; char *q; } *p;
+         * The destructor only has to free one of the pointers here.
+         * This seems easy enough, but now think of a nested version:
+         *   union { int *m; struct { char *q; int c; } *g; } *p;
+         * Do we free twice? Or what if we have:
+         *   union { int *m; int c } *p;
+         * Do we even free at all? Because of how tricky this is, I
+         * think the safest solution is to fall through to the default
+         * case and just free the pointer. This should be well-documented
+         * and emit some kind of warning. */
+        console.warn(`
+Unions destructors cannot be generated to deal with all cases.
+Do not rely on '${destructor}' to free anything other than the union pointer.
+`)
+      default:
+        env.cBuffer += `
+${type2cFnDecl(constructor, [], [], type)} {
+  return (${type2ctype(type)}) malloc(sizeof(${type2ctype(type)}));
+}
+
+${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+  free(${obj});
+}
+`
+        env.constructorTable[key] = constructor
+        env.destructorTable[key] = destructor
+        return [constructor, destructor]
+      }
+  case 'struct':
+    const freeFields = []
+    for (let field in type.params) {
+      const fieldType = type.params[field];
+      if (fieldType.type === 'pointer') {
+        freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field})`)
+      }
+    }
+
+        env.cBuffer += `
+${type2cFnDecl(constructor, [], [], type)} {
+  return (${type2ctype(type)}) {};
+}
+
+${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+  // If struct, free all the fields that are pointers
+  ${freeFields.join(';\n')}
+}
+`
+    env.constructorTable[key] = constructor
+    env.destructorTable[key] = destructor
+    return [constructor, destructor]
+  case 'union':
+    env.cBuffer += `
+${type2cFnDecl(constructor, [], [], type)} {
+  return (${type2ctype(type)}) {};
+}
+`
+    console.warn(`A destructor for ${type2ctype(type)} could not be generated.`)
+    env.constructorTable[key] = constructor
+    return [constructor]
+  default:
+    throw `Can't generate constructor/destructor for type ${type2ctype(type)}`
+  }
+}
+
 export function wrapAccessors(env, type) {
   const isI64 = t => t.type === 'i64' || t.type === 'u64'
   const accessorName = (obj, field) => {
@@ -164,7 +283,7 @@ ${type2cFnDecl(setter, [ptrType, subtype.params[field]], [obj, value], { type: '
         env.accessorTable[JSON.stringify(type)] = accessors
         return accessors
       default:
-        throw `Can't generate accesors for type ${type2ctype(type)}`
+        throw `Can't generate accessors for type ${type2ctype(type)}`
       }
     case 'struct':
     case 'union':
@@ -203,7 +322,7 @@ ${type2cFnDecl(getter, [type], [obj], type.params[field])} {
       env.accessorTable[JSON.stringify(type)] = accessors
       return accessors
     default:
-      throw `Can't generate accesors for type ${type2ctype(type)}`
+      throw `Can't generate accessors for type ${type2ctype(type)}`
   }
 }
 

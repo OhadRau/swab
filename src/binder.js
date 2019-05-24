@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 
-import { c2js, js2c } from './types.js'
-import { type2ctype, type2cdecl, wrapAccessors, wrapSizeof, wrapI64Fn } from './gen_c.js'
+import { c2js, js2c, getConstructor } from './types.js'
+import { type2ctype, type2cdecl, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv, gensym } from './env.js'
 
@@ -22,6 +22,22 @@ function genBindings(configFile, wasmFile) {
 
   for (let include of config.includesRelative) {
     env.cBuffer += `#include "${include}"\n`
+  }
+
+  // Generate constructors (& in turn generate accessors/destructors thru c2js)
+  for (let type in config.types) {
+    const constructor = getConstructor(env, config.types[type])
+
+    // Take only the last portion of the type (e.g. struct x => x)
+    const typeSegments = type.split(/\s+/g)
+    let typeName = typeSegments[typeSegments.length - 1]
+
+    env.jsBuffer += `
+export function create_${typeName}() {
+  return ${c2js(env, config.types[type])}(__wasm_exports.${constructor}());
+}
+`
+    env.exports.add(constructor)
   }
 
   for (let functionName in config.functions) {
@@ -45,6 +61,7 @@ export function ${functionName}(${params.join(',')}) {
   )
 }
 `
+    env.exports.add(functionName)
   }
 
   return env

@@ -1,5 +1,5 @@
 import { gensym } from './env.js'
-import { type2ctype, wrapSizeof, wrapAccessors } from './gen_c.js'
+import { type2ctype, wrapSizeof, wrapAccessors, wrapConstructorDestructor } from './gen_c.js'
 
 export const jstypes = Object.freeze([
   'boolean',
@@ -51,7 +51,7 @@ export function substitute(env, type) {
     case 'f64':
     case 'enum':
     case 'void':
-      return type;
+      return type
     case 'pointer':
       return { type: type.type, params: [substitute(env, type.params[0])], orig: (type.orig || type) }
     case 'array':
@@ -148,6 +148,26 @@ export function getAccessors(env, c) {
     return env.accessorTable[key]
   } else {
     return wrapAccessors(env, type)
+  }
+}
+
+export function getConstructor(env, c) {
+  let type = substitute(env, c)
+  let key = JSON.stringify(type)
+  if (key in env.constructorTable) {
+    return env.constructorTable[key]
+  } else {
+    return wrapConstructorDestructor(env, type)[0]
+  }
+}
+
+export function getDestructor(env, c) {
+  let type = substitute(env, c)
+  let key = JSON.stringify(type)
+  if (key in env.destructorTable) {
+    return env.destructorTable[key]
+  } else {
+    return wrapConstructorDestructor(env, type)[1]
   }
 }
 
@@ -300,6 +320,11 @@ function ${c2numptr}(${numptr}) {
           methods.push(`set_${field}: ((${value}) => ${to_c}(__wasm_exports.${setter}(${obj}, ${value})))`)
         }
 
+        const destroy = getDestructor(env, c)
+        if (destroy) {
+          methods.push(`destroy: (() => __wasm_exports.${destroy}(${obj}))`)
+        }
+
         env.jsBuffer += `
 function ${c2obj}(${obj}) {
   return {
@@ -395,6 +420,11 @@ function ${c2enum}(${name}) {
 
         env.exports.add(getter)
         methods.push(`get_${field}: (() => ${to_js}(__wasm_exports.${getter}(${obj})))`)
+      }
+
+      const destroy = getDestructor(env, c)
+      if (destroy) {
+        methods.push(`destroy: (() => __wasm_exports.${destroy}(${obj}))`)
       }
 
       env.jsBuffer += `
