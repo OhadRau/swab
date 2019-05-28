@@ -1,0 +1,9 @@
+{
+  "name": "swablib",
+  "version": "0.1.0",
+  "description": "SWAB library for Node",
+  "main": "swablib.mjs",
+  "scripts": {},
+  "author": "Ohad Rau <ohadrau@google.com>",
+  "license": "All Rights Reserved"
+}

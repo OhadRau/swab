@@ -58,21 +58,21 @@ function genBindings(configFile, wasmFile) {
     if (typeInfo.type === 'union') {
       env.jsBuffer += `
 export function create_${typeName}({${fields.join(',')}}) {
-  return ${c2js(env, typeInfo)}(${checkField}, __wasm_exports.${constructor}(${fieldValues.join(',')}));
+  return ${c2js(env, typeInfo)}(${checkField}, swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
 }
 
 export function create_${typeName}_ptr() {
-  return ${c2js(env, ptrTypeInfo)}(__wasm_exports.${ptrConstructor}());
+  return ${c2js(env, ptrTypeInfo)}(swab.__wasm_exports.${ptrConstructor}());
 }
 `
     } else if (typeInfo.type === 'struct') {
       env.jsBuffer += `
 export function create_${typeName}({${fields.join(',')}}) {
-  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}(${fieldValues.join(',')}));
+  return ${c2js(env, typeInfo)}(swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
 }
 
 export function create_${typeName}_ptr() {
-  return ${c2js(env, ptrTypeInfo)}(__wasm_exports.${ptrConstructor}());
+  return ${c2js(env, ptrTypeInfo)}(swab.__wasm_exports.${ptrConstructor}());
 }
 `
     }
@@ -98,7 +98,7 @@ export function create_${typeName}_ptr() {
     env.jsBuffer += `
 export function ${functionName}(${paramNames.join(',')}) {
   return ${wrapReturn}(
-    __wasm_exports.${functionName}(
+    swab.__wasm_exports.${functionName}(
       ${args.join(',')}
     )
   )
@@ -120,9 +120,9 @@ export function bind({configFile, wasmBinary, cOutput, jsOutput, importSyms, exp
 
 bind({
   configFile: './test/basic-config.json',
-  wasmBinary: './test/build/basic-config.wasm',
-  cOutput: './test/build/basic-config-bindings.c',
-  jsOutput: './test/build/basic-config-bindings.js',
+  wasmBinary: 'basic-config.wasm',
+  cOutput: './test/build/basic-bindings.c',
+  jsOutput: './test/build/basic-bindings.mjs',
   importSyms: './test/build/import.syms',
   exportSyms: './test/build/export.syms'
 })

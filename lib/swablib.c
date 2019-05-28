@@ -1,4 +1,4 @@
-#include "bindlib.h"
+#include "swablib.h"
 
 // IMPORTME
 __wasm_big_int __js_new_big_int(i32 upper, i32 lower);

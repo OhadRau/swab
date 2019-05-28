@@ -133,11 +133,11 @@ export function getSizeof(env, c) {
   let key = JSON.stringify(type)
   if (key in env.sizeofTable) {
     env.exports.add(env.sizeofTable[key])
-    return `__wasm_exports.${env.sizeofTable[key]}`
+    return `swab.__wasm_exports.${env.sizeofTable[key]}`
   } else {
     const sizeof = wrapSizeof(env, type)
     env.exports.add(sizeof)
-    return `__wasm_exports.${sizeof}`
+    return `swab.__wasm_exports.${sizeof}`
   }
 }
 
@@ -222,7 +222,7 @@ export function c2js(env, c) {
       const c2char = gensym('c2char'), char = gensym('char')
       env.jsBuffer += `
 function ${c2char}(${char}) {
-  return String.fromCharCode(${char}));
+  return String.fromCharCode(${char});
 }
 `
       env.c2jsTable[key] = c2char
@@ -280,7 +280,7 @@ function ${c2str}(${charPtr}) {
 
   let ${charVal};
   let ${charIdx} = 0;
-  while ((${charVal} = __wasm_memory[${charPtr} + ${charIdx}++]) != 0) {
+  while ((${charVal} = swab.__wasm_memory[${charPtr} + ${charIdx}++]) != 0) {
     ${str} += String.fromCharCode(${charVal});
   }
 
@@ -300,7 +300,7 @@ function ${c2str}(${charPtr}) {
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
-  return new __WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
+  return new swab.__WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
 }
 `
         env.c2jsTable[key] = c2numptr
@@ -325,15 +325,15 @@ function ${c2numptr}(${numptr}) {
           const getter = accessors[field]['getter'], setter = accessors[field]['setter']
 
           env.exports.add(getter)
-          methods.push(`get ${field} () { return ${to_js}(__wasm_exports.${getter}(${obj})); }`)
+          methods.push(`get ${field} () { return ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
 
           env.exports.add(setter)
-          methods.push(`set ${field}(${value}) { ${to_c}(__wasm_exports.${setter}(${obj}, ${value})); }`)
+          methods.push(`set ${field}(${value}) { ${to_c}(swab.__wasm_exports.${setter}(${obj}, ${value})); }`)
         }
 
         const destroy = getDestructor(env, c)
         if (destroy) {
-          methods.push(`destroy: (() => __wasm_exports.${destroy}(${obj}))`)
+          methods.push(`destroy: (() => swab.__wasm_exports.${destroy}(${obj}))`)
         }
 
         // QUESTION: Do we want to wrap this in a __WasmPointer?
@@ -342,7 +342,7 @@ function ${c2numptr}(${numptr}) {
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2obj}(${addr}) {
-  return new __WasmPointer(
+  return new swab.__WasmPointer(
     ${addr},
     (${obj} => {
       ${methods.join(',\n      ')}
@@ -368,7 +368,7 @@ function ${c2obj}(${addr}) {
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
-  return new __WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
+  return new swab.__WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
 }
 `
         env.c2jsTable[key] = c2ptr
@@ -389,7 +389,7 @@ function ${c2ptr}(${ptr}) {
       env.jsBuffer += `
 function ${c2arr}(${cArray}) {
   let ${array} = [];
-  let ${ptr} = new __WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), '${c2pointer_type(elemtype)}');
+  let ${ptr} = new swab.__WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), '${c2pointer_type(elemtype)}');
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
     ${array}[${idx}] = ${convert}(${ptr}.offset(idx));
   }
@@ -414,7 +414,7 @@ function ${c2arr}(${cArray}) {
 function ${c2fp}(${fp}) {
   return (${paramnames.join(',')}) =>
     ${return2c}(
-      __wasm_table.get(${fp})(${wrappedParams})
+      swab.__wasm_table.get(${fp})(${wrappedParams})
     );
 }
 `
@@ -442,12 +442,12 @@ function ${c2enum}(${name}) {
         const getter = accessors[field]['getter']
 
         env.exports.add(getter)
-        methods.push(`get ${field}() { ${to_js}(__wasm_exports.${getter}(${obj})); }`)
+        methods.push(`get ${field}() { ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
       }
 
       const destroy = getDestructor(env, c)
       if (destroy) {
-        methods.push(`destroy: (() => __wasm_exports.${destroy}(${obj}))`)
+        methods.push(`destroy: (() => swab.__wasm_exports.${destroy}(${obj}))`)
       }
 
       env.jsBuffer += `
@@ -507,8 +507,8 @@ export function js2c(env, c) {
         env.exports.add('free')
         return `
 (${str} => {
-  const ${charPtr} = new __WasmPointer(
-    __wasm_exports.malloc(${str}.length + 1),
+  const ${charPtr} = new swab.__WasmPointer(
+    swab.__wasm_exports.malloc(${str}.length + 1),
     ${c2js(env, c.params[0])},
     ${js2c(env, c.params[0])},
     8,
@@ -521,7 +521,7 @@ export function js2c(env, c) {
   ${charPtr}.offset(${str}.length).assign('\0');
 
   return ${charPtr};
-}
+})
 `
       default:
         const ptr = gensym('pointer')
@@ -537,8 +537,8 @@ export function js2c(env, c) {
 
       return `
 (${arr} => {
-  const ${arrPtr} = new __WasmPointer(
-    __wasm_exports.malloc(${arr}.length),
+  const ${arrPtr} = new swab.__WasmPointer(
+    swab.__wasm_exports.malloc(${arr}.length),
     ${c2js(env, c.params[0])},
     ${js2c(env, c.params[0])},
     ${getSizeof(env, c.params[0])}(),
@@ -549,7 +549,7 @@ export function js2c(env, c) {
   }
 
   return ${arrPtr};
-}
+})
 `
       break
     case 'functionPointer':
@@ -574,14 +574,14 @@ export function js2c(env, c) {
       // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
       env.jsBuffer += `
 function ${c2fp}(${fp}) {
-  const ${fpId} = __wasm_table_alloc();
-  __wasm_table.set(
+  const ${fpId} = swab.__wasm_table_alloc();
+  swab.__wasm_table.set(
     ${fpId},
-    __wasm_wrap_function(
+    swab.__wasm_wrap_function(
       (${paramNames}) => {
         const ${result} =
           ${creturn}(${fp}(${castparams}))
-        __wasm_table_free(${fpId})
+        swab.__wasm_table_free(${fpId})
         return ${result}
       },
       [${paramtypes.map(x => "'" + c2wasm_type(x) + "'")}],

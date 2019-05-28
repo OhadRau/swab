@@ -37,16 +37,18 @@ export function createEnv(wasmFile) {
     // TODO: Handle escape codes in wasmFile name
     // TODO: Generate everything within a callback/async method
     jsBuffer: `
-import 'wasm-bindlib'
+import * as swab from 'swablib';
 
-__wasm_load('${wasmFile}')
+let __wasm_wrapped_functions = [];
+
+swab.__wasm_load('${wasmFile}');
 
 function __wasm_identity(__x) {
   return __x;
 }
 `,
     cBuffer: `
-#include <bindlib.h>
+#include <swablib.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

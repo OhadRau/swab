@@ -3,7 +3,7 @@ TARGET=wasm32-unknown-wasi
 
 COMMA=,
 
-SOURCES=main.c basic-config.c ../lib/bindlib.c build/basic-config-bindings.c
+SOURCES=main.c basic-config.c ../lib/swablib.c build/basic-bindings.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
@@ -18,12 +18,12 @@ LDFLAGS=--no-entry --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) 
 all: build/basic-config.wasm
 
 clean:
-	rm -f $(OBJECTS) build/imports.syms build/export.syms build/basic-config.wasm build/basic-config-bindings.js build/basic-config-bindings.c
+	rm -f $(OBJECTS) build/imports.syms build/export.syms build/basic-config.wasm build/basic-bindings.js build/basic-bindings.c
 
 build/basic-config.wasm: $(OBJECTS)
 	wasm-ld $(LDFLAGS) -o $@ $^
 
-build/basic-config-bindings.c build/basic-config-bindings.js:
+build/basic-bindings.c build/basic-bindings.js:
 	npm run exec
 
 %.o: %.c
