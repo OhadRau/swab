@@ -27,8 +27,10 @@ function genBindings(configFile, wasmFile) {
   // Generate constructors (& in turn generate accessors/destructors thru c2js)
   for (let type in config.types) {
     // Skip non-union/non-struct types
-    const typeInfo = config.types[type]
-    const ptrTypeInfo = { type: 'pointer', params: [ typeInfo ] }
+    let typeInfo = config.types[type]
+    typeInfo.orig = { type }
+    let ptrTypeInfo = { type: 'pointer', params: [ typeInfo ] }
+    ptrTypeInfo.orig = { type: 'pointer', params: [ typeInfo.orig ] }
 
     if (typeInfo.type !== 'union' && typeInfo.type !== 'struct') {
       continue
@@ -78,6 +80,7 @@ export function create_${typeName}_ptr() {
     env.exports.add(ptrConstructor)
   }
 
+  // Generate wrappers for user-exported functions
   for (let functionName in config.functions) {
     const fn = config.functions[functionName]
     const isI64 = t => t.type === 'i64' || t.type === 'u64'
@@ -105,6 +108,24 @@ export function ${functionName}(${params.join(',')}) {
   return env
 }
 
+export function bind({configFile, wasmBinary, cOutput, jsOutput, importSyms, exportSyms}) {
+  const env = genBindings(configFile, wasmBinary)
+  fs.writeFileSync(cOutput, env.cBuffer)
+  fs.writeFileSync(jsOutput, env.jsBuffer)
+  fs.writeFileSync(importSyms, Array.from(env.imports).join('\n'))
+  fs.writeFileSync(exportSyms, Array.from(env.exports).join('\n'))
+}
+
+bind({
+  configFile: './test/basic-config.json',
+  wasmBinary: './test/build/basic-config.wasm',
+  cOutput: './test/build/basic-config-bindings.c',
+  jsOutput: './test/build/basic-config-bindings.js',
+  importSyms: './test/build/import.syms',
+  exportSyms: './test/build/export.syms'
+})
+
+/*
 const env = genBindings('./test/basic-config.json', 'library.wasm')
 //const env = genBindings('./test/libsass-config.json', 'library.wasm')
 console.log(env.jsBuffer)
@@ -113,3 +134,4 @@ console.log(env.cBuffer)
 console.log('========================================================')
 console.log(`Imports: [${[...env.imports.values()].join(', ')}]`)
 console.log(`Exports: [${[...env.exports.values()].join(', ')}]`)
+*/

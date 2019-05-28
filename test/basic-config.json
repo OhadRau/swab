@@ -3,10 +3,10 @@
     "stdio.h"
   ],
   "includesRelative": [
-    "mylib.h"
+    "../basic-config.h"
   ],
   "types": {
-    "struct version_info": {
+    "version_info": {
       "type": "struct",
       "params": {
         "major": { "type": "int" },
@@ -14,14 +14,14 @@
         "patch": { "type": "int" }
       }
     },
-    "struct options": {
+    "options": {
       "type": "struct",
       "params": {
         "size": { "type": "int" },
-        "version": { "type": "pointer", "params": [ { "type": "struct version_info" } ] }
+        "version": { "type": "pointer", "params": [ { "type": "version_info" } ] }
       }
     },
-    "union value": {
+    "value": {
       "type": "union",
       "params": {
         "i": { "type": "int" },
@@ -32,11 +32,11 @@
   "functions": {
     "make_options": {
       "parameters": [ { "type": "int" } ],
-      "returnType": { "type": "pointer", "params": [ { "type": "struct options" } ] }
+      "returnType": { "type": "pointer", "params": [ { "type": "options" } ] }
     },
     "make_version_info": {
       "parameters": [ { "type": "int" }, { "type": "int"}, { "type": "int" } ],
-      "returnType": { "type": "struct version_info" }
+      "returnType": { "type": "version_info" }
     },
     "addI64": {
       "returnType": { "type": "int64_t" },

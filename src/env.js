@@ -49,7 +49,7 @@ function __wasm_identity(__x) {
 #include "bindlib.h"
 #include <stdint.h>
 #include <stdlib.h>
-#include <memcpy.h>
+#include <string.h>
 `,
     imports: new Set([]),
     exports: new Set([])

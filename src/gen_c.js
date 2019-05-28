@@ -125,7 +125,7 @@ ${type2cFnDecl(copy, [ptrType, type], [dst, src], { type: 'void' })} {
 export function wrapConstructorDestructor(env, type) {
   const isI64 = t => t.type === 'i64' || t.type === 'u64'
   const constructorDestructorName = (obj) => {
-    const unsubbed = obj.orig || obj;
+    const unsubbed = obj.orig || obj
     if (!(unsubbed.type in ctypes)) {
       // If the name is like `struct t` we want to only take the `t`
       const components = unsubbed.type.split(/\s+/g)

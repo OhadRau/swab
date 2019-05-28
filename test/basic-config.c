@@ -1,24 +1,16 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include "basic-config.h"
 
-struct version_info {
-  int major, minor, patch;
-};
-
-struct options {
-  int size;
-  struct version_info *version;
-};
-
-struct version_info *make_version_info(int major, int minor, int patch) {
-  struct version_info *v = malloc(sizeof(struct version_info));
+version_info *make_version_info(int major, int minor, int patch) {
+  version_info *v = malloc(sizeof(version_info));
   v->major = major;
   v->minor = minor;
   v->patch = patch;
 }
 
-struct options *make_options(int c) {
-  struct options *o = malloc(sizeof(struct options));
+options *make_options(int c) {
+  options *o = malloc(sizeof(options));
   o->size = c;
   o->version = make_version_info(c, c + 1, c + 2);
   return o;
