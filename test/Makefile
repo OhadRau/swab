@@ -1,14 +1,19 @@
 SYSROOT=$$HOME/Projects/wasi-sysroot/sysroot
 TARGET=wasm32-unknown-wasi
 
-SOURCES=basic-config.c ../lib/bindlib.c build/basic-config-bindings.c
+COMMA=,
+
+SOURCES=main.c basic-config.c ../lib/bindlib.c build/basic-config-bindings.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
-CFLAGS=-I../lib/ --sysroot $(SYSROOT) --target=$(TARGET)
+IMPORTS=$(shell cat build/import.syms)
+EXPORTS=$(shell cat build/export.syms)
+
+CFLAGS=-I../lib/ --sysroot=$(SYSROOT) --target=$(TARGET)
 IMPORTFLAGS=-allow-undefined-file build/import.syms
-EXPORTFLAGS=-exported_symbols_list build/export.syms
-LDFLAGS=--no-entry --import-memory --import-table $(IMPORT_FLAGS) $(EXPORT_FLAGS)
+EXPORTFLAGS=$(addprefix --export=, $(EXPORTS))
+LDFLAGS=--no-entry --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) -L$(SYSROOT)/lib/wasm32-wasi -lc
 
 all: build/basic-config.wasm
 
@@ -16,7 +21,7 @@ clean:
 	rm -f $(OBJECTS) build/imports.syms build/export.syms build/basic-config.wasm build/basic-config-bindings.js build/basic-config-bindings.c
 
 build/basic-config.wasm: $(OBJECTS)
-	wasm-ld --no-entry --import-memory --import-table -o $@ $^
+	wasm-ld $(LDFLAGS) -o $@ $^
 
 build/basic-config-bindings.c build/basic-config-bindings.js:
 	npm run exec

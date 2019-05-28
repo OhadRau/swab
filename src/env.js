@@ -46,7 +46,7 @@ function __wasm_identity(__x) {
 }
 `,
     cBuffer: `
-#include "bindlib.h"
+#include <bindlib.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

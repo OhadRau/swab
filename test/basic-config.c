@@ -7,6 +7,7 @@ version_info *make_version_info(int major, int minor, int patch) {
   v->major = major;
   v->minor = minor;
   v->patch = patch;
+  return v;
 }
 
 options *make_options(int c) {

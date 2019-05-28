@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-import { c2js, js2c, getConstructor } from './types.js'
+import { c2js, js2c, getConstructor, substitute } from './types.js'
 import { type2ctype, type2cdecl, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv, gensym } from './env.js'
@@ -83,18 +83,20 @@ export function create_${typeName}_ptr() {
   // Generate wrappers for user-exported functions
   for (let functionName in config.functions) {
     const fn = config.functions[functionName]
+    const result = substitute(env, fn.returnType)
+    const params = fn.parameters.map(t => substitute(env, t))
     const isI64 = t => t.type === 'i64' || t.type === 'u64'
-    if (isI64(fn.returnType) || fn.parameters.some(isI64)) {
-      functionName = wrapI64Fn(env, functionName, fn.parameters, fn.returnType)
+    if (isI64(result) || params.some(isI64)) {
+      functionName = wrapI64Fn(env, functionName, params, result)
     }
 
-    const params = fn.parameters.map(_ => gensym('param'))
-    const args = params.map((param, index) => `${js2c(env, fn.parameters[index])}(${param})`)
+    const paramNames = params.map(_ => gensym('param'))
+    const args = paramNames.map((param, index) => `${js2c(env, params[index])}(${param})`)
 
-    const wrapReturn = c2js(env, fn.returnType)
+    const wrapReturn = c2js(env, result)
 
     env.jsBuffer += `
-export function ${functionName}(${params.join(',')}) {
+export function ${functionName}(${paramNames.join(',')}) {
   return ${wrapReturn}(
     __wasm_exports.${functionName}(
       ${args.join(',')}

@@ -12,5 +12,5 @@ __wasm_big_int __wasm_wrap_i64(i64 i64) {
 }
 
 i64 __wasm_unwrap_i64(__wasm_big_int big_int) {
-  i64 result = __js_big_int_upper(big_int) << 32 | __js_big_int_lower(big_int);
+  return (i64) __js_big_int_upper(big_int) << 32 | __js_big_int_lower(big_int);
 }

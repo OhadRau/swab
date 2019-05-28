@@ -22,6 +22,7 @@ typedef double f64;
 
 typedef void * __wasm_big_int;
 
-__wasm_big_int __wasm_wrap_i64(int64_t i64);
+__wasm_big_int __wasm_wrap_i64(i64 i64);
+i64 __wasm_unwrap_i64(__wasm_big_int bigint);
 
 #endif

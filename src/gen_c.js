@@ -256,6 +256,7 @@ ${type2cFnDecl(constructor, uparams, unames, type)} {
   switch (${tag}) {
   ${uassignments.join('')}
   };
+  return ${union};
 }
 `
     console.warn(`A destructor for ${type2ctype(type)} could not be generated.`)
@@ -418,7 +419,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
 
   const wrappedArgs = actualArgNames.map((name, index) =>
     wrapArg(index)
-      ? `__wasm_wrap_i64(${name})`
+      ? `__wasm_unwrap_i64(${name})`
       : name
   )
 
