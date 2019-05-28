@@ -41,22 +41,39 @@ function genBindings(configFile, wasmFile) {
     const typeSegments = type.split(/\s+/g)
     let typeName = typeSegments[typeSegments.length - 1]
 
+    const checkField = ''
     const fields = []
-    const defaultedFields = []
+    const fieldValues = []
     for (let field in typeInfo.params) {
+      checkField += `${field} ? ${fields.length} : `
       fields.push(field)
-      defaultedFields.push(`${field} ? ${js2c(env, typeInfo.params[field])}(${field}) : 0`)
+      fieldValues.push(`${field}: ${js2c(env, typeInfo.params[field])}(${field})`)
     }
 
-    env.jsBuffer += `
+    checkField += '-1'
+
+    // If it's a union, we want to use it as a discriminated union (i.e. get index of field to set)
+    if (typeInfo.type === 'union') {
+      env.jsBuffer += `
 export function create_${typeName}({${fields.join(',')}}) {
-  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}(${defaultedFields.join(',')}));
+  return ${c2js(env, typeInfo)}(${checkField}, __wasm_exports.${constructor}(${fieldValues.join(',')}));
 }
 
 export function create_${typeName}_ptr() {
   return ${c2js(env, ptrTypeInfo)}(__wasm_exports.${ptrConstructor}());
 }
 `
+    } else if (typeInfo.type === 'struct') {
+      env.jsBuffer += `
+export function create_${typeName}({${fields.join(',')}}) {
+  return ${c2js(env, typeInfo)}(__wasm_exports.${constructor}(${fieldValues.join(',')}));
+}
+
+export function create_${typeName}_ptr() {
+  return ${c2js(env, ptrTypeInfo)}(__wasm_exports.${ptrConstructor}());
+}
+`
+    }
     env.exports.add(constructor)
     env.exports.add(ptrConstructor)
   }

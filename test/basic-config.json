@@ -20,6 +20,13 @@
         "size": { "type": "int" },
         "version": { "type": "pointer", "params": [ { "type": "struct version_info" } ] }
       }
+    },
+    "union value": {
+      "type": "union",
+      "params": {
+        "i": { "type": "int" },
+        "f": { "type": "float" }
+      }
     }
   },
   "functions": {
@@ -31,20 +38,12 @@
       "parameters": [ { "type": "int" }, { "type": "int"}, { "type": "int" } ],
       "returnType": { "type": "struct version_info" }
     },
-    "create_f32_array": {
-      "parameters": [],
-      "returnType": { "type": "array", "params": [ { "type": "float" }, 16 ] }
-    },
-    "zzz": {
-      "returnType": { "type": "pointer", "params": [ { "type": "int" }  ] },
-      "parameters": []
-    },
     "addI64": {
       "returnType": { "type": "int64_t" },
       "parameters": [ { "type": "i64" }, { "type": "i64" } ]
     },
     "arrayStuff": {
-      "returnType": { "type": "array", "params": [ { "type": "int" }, 3 ] },
+      "returnType": { "type": "pointer", "params": [ { "type": "int" } ] },
       "parameters": [ { "type": "array", "params": [ { "type": "int" }, 3 ] } ]
     },
     "stringStuff": {

@@ -69,7 +69,7 @@ export function type2ctype(type, buffer = '') {
       }
       return `struct { ${structFields} } ${buffer}`
     case 'union':
-      const unionFields = ''
+      let unionFields = ''
       for (let key in type.params) {
         unionFields += type2cdecl(type.params[key], key) + ';'
       }
@@ -235,9 +235,27 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
     env.destructorTable[key] = destructor
     return [constructor, destructor]
   case 'union':
+    const tag = gensym('tag'), union = gensym('union')
+    let uparams = [{type: 'i32'}], unames = [tag], uassignments = []
+    for (let field in type.params) {
+      const fieldType = type.params[field]
+      uparams.push(fieldType)
+
+      const name = gensym(field)
+      unames.push(name)
+
+      uassignments.push(`
+  case ${Object.keys(type.params).indexOf(field)}:
+    ${union}.${field} = ${name};
+    break;`)
+    }
+
     env.cBuffer += `
-${type2cFnDecl(constructor, [], [], type)} {
-  return (${type2ctype(type)}) {};
+${type2cFnDecl(constructor, uparams, unames, type)} {
+  ${type2ctype(type)} ${union};
+  switch (${tag}) {
+  ${uassignments.join('')}
+  };
 }
 `
     console.warn(`A destructor for ${type2ctype(type)} could not be generated.`)
