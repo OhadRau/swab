@@ -24,7 +24,7 @@ build/basic-bindings.wasm: $(OBJECTS)
 	wasm-ld $(LDFLAGS) -o $@ $^
 
 build/basic-bindings.c build/basic-bindings.mjs: basic-config.json
-	npm run exec
+	node ../bin/binder.js basic-config.json
 
 %.o: %.c
 	clang $(CFLAGS) -o $@ -c $<

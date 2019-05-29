@@ -1,4 +1,9 @@
 {
+  "wasmBinary": "basic-bindings.wasm",
+  "jsOutput": "build/basic-bindings.mjs",
+  "cOutput": "build/basic-bindings.c",
+  "importSymbols": "build/import.syms",
+  "exportSymbols": "build/export.syms",
   "includes": [
     "stdio.h"
   ],

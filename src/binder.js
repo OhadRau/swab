@@ -5,9 +5,7 @@ import { type2ctype, type2cdecl, wrapI64Fn } from './gen_c.js'
 import { cacheWrapper } from './callback.js'
 import { createEnv, gensym } from './env.js'
 
-function genBindings(configFile, wasmFile) {
-  let config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
-
+function genBindings(config, wasmFile) {
   let env = createEnv(wasmFile)
 
   // Add user-defined types to substitution table
@@ -113,22 +111,17 @@ export function ${functionName}(${paramNames.join(',')}) {
   return env
 }
 
-export function bind({configFile, wasmBinary, cOutput, jsOutput, importSyms, exportSyms}) {
-  const env = genBindings(configFile, wasmBinary)
-  fs.writeFileSync(cOutput, env.cBuffer)
-  fs.writeFileSync(jsOutput, env.jsBuffer)
-  fs.writeFileSync(importSyms, Array.from(env.imports).join('\n'))
-  fs.writeFileSync(exportSyms, Array.from(env.exports).join('\n'))
+export function bind(config) {
+  const env = genBindings(config, config.wasmBinary)
+  fs.writeFileSync(config.cOutput, env.cBuffer)
+  fs.writeFileSync(config.jsOutput, env.jsBuffer)
+  fs.writeFileSync(config.importSymbols, Array.from(env.imports).join('\n'))
+  fs.writeFileSync(config.exportSymbols, Array.from(env.exports).join('\n'))
 }
 
-bind({
-  configFile: './test/basic-config.json',
-  wasmBinary: 'basic-bindings.wasm',
-  cOutput: './test/build/basic-bindings.c',
-  jsOutput: './test/build/basic-bindings.mjs',
-  importSyms: './test/build/import.syms',
-  exportSyms: './test/build/export.syms'
-})
+let configFile = process.argv[process.argv.length - 1]
+let config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
+bind(config)
 
 /*
 const env = genBindings('./test/basic-config.json', 'library.wasm')
