@@ -287,7 +287,7 @@ function ${c2str}(${charPtr}) {
 
   let ${charVal};
   let ${charIdx} = 0;
-  while ((${charVal} = swab.__wasm_memory[${charPtr} + ${charIdx}++]) != 0) {
+  while ((${charVal} = new Uint8Array(swab.__wasm_memory.buffer)[${charPtr} + ${charIdx}++]) !== 0) {
     ${str} += String.fromCharCode(${charVal});
   }
 
@@ -520,16 +520,16 @@ export function js2c(env, c) {
     swab.__wasm_exports.malloc(${str}.length + 1),
     ${c2js(env, c.params[0])},
     ${js2c(env, c.params[0])},
-    8,
+    1,
     'i8'
   );
   for (let ${idx} = 0; ${idx} < ${str}.length; ${idx}++) {
     ${charPtr}.offset(${idx}).assign(${str}[${idx}]);
   }
   // Make sure we write a null terminator & don't try to call a method on 0
-  ${charPtr}.offset(${str}.length).assign('\0');
+  ${charPtr}.offset(${str}.length).assign(String.fromCharCode(0));
 
-  return ${charPtr};
+  return ${charPtr}.addr;
 })
 `
       default:
@@ -557,7 +557,7 @@ export function js2c(env, c) {
     swab.__wasm_exports.${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
   }
 
-  return ${arrPtr};
+  return ${arrPtr}.addr;
 })
 `
       break

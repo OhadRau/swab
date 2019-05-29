@@ -22,6 +22,9 @@ int64_t addI64(int64_t a, int64_t b) {
 }
 
 int *arrayStuff(int arr[3]) {
+  for (int i = 0; i < 3; i++) {
+    arr[i] += 1;
+  }
   return arr;
 }
 

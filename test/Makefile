@@ -23,7 +23,7 @@ clean:
 build/basic-bindings.wasm: $(OBJECTS)
 	wasm-ld $(LDFLAGS) -o $@ $^
 
-build/basic-bindings.c build/basic-bindings.mjs:
+build/basic-bindings.c build/basic-bindings.mjs: basic-config.json
 	npm run exec
 
 %.o: %.c
