@@ -49,6 +49,13 @@
     "stringStuff": {
       "returnType": { "type": "pointer", "params": [ { "type": "char" } ] },
       "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] } ]
+    },
+    "callback": {
+      "returnType": { "type": "void" },
+      "parameters": [ { "type": "functionPointer", "params": [
+        [ { "type": "int" } ],
+        { "type": "void" }
+      ] } ]
     }
   }
 }

@@ -45,7 +45,7 @@ export function cacheWrapper(env, paramTypes, returnType) {
 
   // Best we can do for caching, since proper module caching was removed from the WASM spec
   env.jsBuffer += `
-__wasm_wrapped_functions['${wrapperId}'] = new WebAssembly.Module(
+swab.__wasm_wrapped_functions['${wrapperId}'] = new WebAssembly.Module(
   new Uint8Array([${wasmProgram.join(',')}])
 );
 `

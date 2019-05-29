@@ -59,8 +59,8 @@ export function substitute(env, type) {
       return { type: type.type, params: [substitute(env, type.params[0]), type.params[1]], orig: (type.orig || type) }
     case 'functionPointer':
       return { type: 'functionPointer', params: [
-        [ type.params[0].map(subtype => substitute(env, subtype)) ],
-        [ substitute(env, type.params[1]) ]
+        type.params[0].map(subtype => substitute(env, subtype)),
+        substitute(env, type.params[1])
       ], orig: (type.orig || type) }
     case 'struct':
     case 'union':
@@ -573,18 +573,17 @@ export function js2c(env, c) {
       const cparams = paramtypes.map(ctype => c2js(env, ctype))
       const creturn = c2js(env, returntype)
 
-      const fp2c = gensym('functionPointer2c'), fp = gensym('functionPointer')
-      const result = gensym('result'), fpId = gensym('fpId')
+      const fp = gensym('functionPointer'), result = gensym('result'), fpId = gensym('fpId')
       const paramNames = paramtypes.map(_ => gensym('param'))
 
       const castparams = paramNames.map((name, idx) => `${cparams[idx]}(${name})`)
 
-      const wrapperId = cacheWrapper(env, paramtypes.map(x => `'c2wasm_type(${x})'`), `'c2wasm_type(${returntype})'`)
+      const wrapperId = cacheWrapper(env, paramtypes, returntype)
 
       // TODO: If it returns void don't do anything with the result value
       // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
-      env.jsBuffer += `
-function ${c2fp}(${fp}) {
+      return `
+(${fp} => {
   const ${fpId} = swab.__wasm_table_alloc();
   swab.__wasm_table.set(
     ${fpId},
@@ -595,14 +594,11 @@ function ${c2fp}(${fp}) {
         swab.__wasm_table_free(${fpId})
         return ${result}
       },
-      ${wrapperId}
+      '${wrapperId}'
     )
   );
   return ${fpId};
-}
-`
-      env.js2cTable[key] = c2fp
-      return fp2c
+})`
     case 'enum':
       // Reverse the enum definition and index into that
       const enum2num = {}

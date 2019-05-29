@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "basic-config.h"
 
 version_info *make_version_info(int major, int minor, int patch) {
@@ -29,5 +30,15 @@ int *arrayStuff(int arr[3]) {
 }
 
 char *stringStuff(char *str) {
+  int len = strlen(str);
+  for (int i = 0; i < len; i++) {
+    if (str[i] >= 'a' && str[i] <= 'z') {
+      str[i] = str[i] - ('a' - 'A');
+    }
+  }
   return str;
+}
+
+void callback(void (*f)(int)) {
+  f(777);
 }

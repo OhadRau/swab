@@ -25,4 +25,6 @@ int64_t addI64(int64_t a, int64_t b);
 int *arrayStuff(int arr[3]);
 char *stringStuff(char *str);
 
+void callback(void (*f)(int));
+
 #endif

@@ -33,3 +33,5 @@ console.log(newArray)
 
 let string = "hello"
 console.log(basic.stringStuff(string))
+
+basic.callback(x => console.log(x))
