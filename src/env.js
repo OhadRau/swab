@@ -39,8 +39,6 @@ export function createEnv(wasmFile) {
     jsBuffer: `
 import * as swab from 'swablib';
 
-let __wasm_wrapped_functions = [];
-
 swab.__wasm_load('${wasmFile}');
 
 function __wasm_identity(__x) {

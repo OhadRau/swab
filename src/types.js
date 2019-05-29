@@ -1,4 +1,5 @@
 import { gensym } from './env.js'
+import { cacheWrapper } from './callback.js'
 import { type2ctype, wrapSizeof, wrapAccessors, wrapConstructorDestructor, wrapCopy } from './gen_c.js'
 
 export const jstypes = Object.freeze([
@@ -570,6 +571,8 @@ export function js2c(env, c) {
 
       const castparams = paramNames.map((name, idx) => `${cparams[idx]}(${name})`)
 
+      const wrapperId = cacheWrapper(env, paramtypes.map(x => `'c2wasm_type(${x})'`), `'c2wasm_type(${returntype})'`)
+
       // TODO: If it returns void don't do anything with the result value
       // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
       env.jsBuffer += `
@@ -584,8 +587,7 @@ function ${c2fp}(${fp}) {
         swab.__wasm_table_free(${fpId})
         return ${result}
       },
-      [${paramtypes.map(x => "'" + c2wasm_type(x) + "'")}],
-      ${"'" + c2wasm_type(returntype) + "'"}
+      ${wrapperId}
     )
   );
   return ${fpId};

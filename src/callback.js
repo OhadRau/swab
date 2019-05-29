@@ -49,7 +49,5 @@ __wasm_wrapped_functions['${wrapperId}'] = new WebAssembly.Module(
   new Uint8Array([${wasmProgram.join(',')}])
 );
 `
-  env.wrapperCache[wrapperId] = wasmProgram
-
-  return [wrapperId, wasmProgram]
+  return wrapperId
 }
