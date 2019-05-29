@@ -117,6 +117,7 @@ ${type2cFnDecl(copy, [ptrType, type], [dst, src], { type: 'void' })} {
 }
 `
   env.copyTable[key] = copy
+  env.exports.add(copy)
   return copy
 }
 
@@ -172,6 +173,8 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
 `
         env.constructorTable[key] = constructor
         env.destructorTable[key] = destructor
+        env.exports.add(constructor)
+        env.exports.add(destructor)
         return [constructor, destructor]
       case 'union':
         /* Unions are tricky, because think of the type:
@@ -201,6 +204,8 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
 `
         env.constructorTable[key] = constructor
         env.destructorTable[key] = destructor
+        env.exports.add(constructor)
+        env.exports.add(destructor)
         return [constructor, destructor]
       }
   case 'struct':
@@ -233,6 +238,8 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
 `
     env.constructorTable[key] = constructor
     env.destructorTable[key] = destructor
+    env.exports.add(constructor)
+    env.exports.add(destructor)
     return [constructor, destructor]
   case 'union':
     const tag = gensym('tag'), union = gensym('union')
@@ -261,6 +268,7 @@ ${type2cFnDecl(constructor, uparams, unames, type)} {
 `
     console.warn(`A destructor for ${type2ctype(type)} could not be generated.`)
     env.constructorTable[key] = constructor
+    env.exports.add(constructor)
     return [constructor]
   default:
     throw `Can't generate constructor/destructor for type ${type2ctype(type)}`
@@ -402,6 +410,7 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
   // TODO: What do we do for function pointers?
   const wrapper = gensym('i64_wrapper')
   env.i64Table[fn] = wrapper
+  env.exports.add(wrapper)
 
   const retype = oldType =>
     oldType.type === 'i64' || oldType.type === 'u64'

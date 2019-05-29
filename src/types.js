@@ -256,14 +256,20 @@ function ${c2u32}(${u32}) {
       const c2u64 = gensym('c2u64'), u64 = gensym('u64')
       env.jsBuffer += `
 function ${c2u64}(${u64}) {
-  return ${u64} + 18446744073709551615n + 1n;
+  return BigInt(${u64}) + 18446744073709551615n + 1n;
 }
 `
       env.c2jsTable[key] = c2u64
       return c2u64
     case 'i64':
-      env.c2jsTable[key] = id
-      return env.c2jsTable[key]
+      const c2i64 = gensym('c2i64'), i64 = gensym('i64')
+      env.jsBuffer += `
+function ${c2i64}(${i64}) {
+  return BigInt(${i64});
+}
+`
+      env.c2jsTable[key] = c2i64
+      return c2i64
     case 'f32':
       env.c2jsTable[key] = id
       return env.c2jsTable[key]
@@ -326,7 +332,7 @@ function ${c2numptr}(${numptr}) {
           const getter = accessors[field]['getter'], setter = accessors[field]['setter']
 
           env.exports.add(getter)
-          methods.push(`get ${field} () { return ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
+          methods.push(`get ${field}() { return ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
 
           env.exports.add(setter)
           methods.push(`set ${field}(${value}) { ${to_c}(swab.__wasm_exports.${setter}(${obj}, ${value})); }`)
@@ -345,9 +351,9 @@ function ${c2numptr}(${numptr}) {
 function ${c2obj}(${addr}) {
   return new swab.__WasmPointer(
     ${addr},
-    (${obj} => {
+    (${obj} => ({
       ${methods.join(',\n      ')}
-    }),
+    })),
     ${js2c(env, c)},
     ${getSizeof(env, c.params[0])}(),
     '${c2pointer_type(c.params[0])}'
@@ -492,9 +498,11 @@ export function js2c(env, c) {
       // TODO: This case is tricky. We might need to generate more C
       // I believe we need to split back into upper/lower int32s here and wrap the other function
       // Solution = wrapI64'ing the other function and returning an [upper, lower] array here? Or returning a BigInt?
-      break
+      const u64 = gensym('u64')
+      return `(${u64} => Number(${u64} - 18446744073709551615n - 1n))`
     case 'i64':
-      break
+      const i64 = gensym('i64')
+      return `(${i64} => Number(${i64}))`
     case 'f32':
       return id
     case 'f64':
@@ -543,10 +551,10 @@ export function js2c(env, c) {
     ${c2js(env, c.params[0])},
     ${js2c(env, c.params[0])},
     ${getSizeof(env, c.params[0])}(),
-    ${c2pointer_type(c.params[0])}
+    '${c2pointer_type(c.params[0])}'
   );
   for (let ${idx} = 0; ${idx} < ${arr}.length; ${idx}++) {
-    ${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
+    swab.__wasm_exports.${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
   }
 
   return ${arrPtr};

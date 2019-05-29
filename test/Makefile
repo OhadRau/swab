@@ -15,15 +15,15 @@ IMPORTFLAGS=-allow-undefined-file build/import.syms
 EXPORTFLAGS=$(addprefix --export=, $(EXPORTS))
 LDFLAGS=--no-entry --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) -L$(SYSROOT)/lib/wasm32-wasi -lc
 
-all: build/basic-config.wasm
+all: build/basic-bindings.wasm
 
 clean:
-	rm -f $(OBJECTS) build/imports.syms build/export.syms build/basic-config.wasm build/basic-bindings.js build/basic-bindings.c
+	rm -f $(OBJECTS) build/import.syms build/export.syms build/basic-bindings.wasm build/basic-bindings.mjs build/basic-bindings.c
 
-build/basic-config.wasm: $(OBJECTS)
+build/basic-bindings.wasm: $(OBJECTS)
 	wasm-ld $(LDFLAGS) -o $@ $^
 
-build/basic-bindings.c build/basic-bindings.js:
+build/basic-bindings.c build/basic-bindings.mjs:
 	npm run exec
 
 %.o: %.c

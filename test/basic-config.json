@@ -36,7 +36,7 @@
     },
     "make_version_info": {
       "parameters": [ { "type": "int" }, { "type": "int"}, { "type": "int" } ],
-      "returnType": { "type": "version_info" }
+      "returnType": { "type": "pointer", "params": [ { "type": "version_info" } ] }
     },
     "addI64": {
       "returnType": { "type": "int64_t" },

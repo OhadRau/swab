@@ -56,23 +56,25 @@ function genBindings(configFile, wasmFile) {
 
     // If it's a union, we want to use it as a discriminated union (i.e. get index of field to set)
     if (typeInfo.type === 'union') {
+      let convert = c2js(env, typeInfo), convertPtr = c2js(env, ptrTypeInfo)
       env.jsBuffer += `
 export function create_${typeName}({${fields.join(',')}}) {
-  return ${c2js(env, typeInfo)}(${checkField}, swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
+  return ${convert}(${checkField}, swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
 }
 
 export function create_${typeName}_ptr() {
-  return ${c2js(env, ptrTypeInfo)}(swab.__wasm_exports.${ptrConstructor}());
+  return ${convertPtr}(swab.__wasm_exports.${ptrConstructor}());
 }
 `
     } else if (typeInfo.type === 'struct') {
+      let convert = c2js(env, typeInfo), convertPtr = c2js(env, ptrTypeInfo)
       env.jsBuffer += `
 export function create_${typeName}({${fields.join(',')}}) {
-  return ${c2js(env, typeInfo)}(swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
+  return ${convert}(swab.__wasm_exports.${constructor}({${fieldValues.join(',')}}));
 }
 
 export function create_${typeName}_ptr() {
-  return ${c2js(env, ptrTypeInfo)}(swab.__wasm_exports.${ptrConstructor}());
+  return ${convertPtr}(swab.__wasm_exports.${ptrConstructor}());
 }
 `
     }
@@ -82,12 +84,13 @@ export function create_${typeName}_ptr() {
 
   // Generate wrappers for user-exported functions
   for (let functionName in config.functions) {
+    let wrapperName = functionName
     const fn = config.functions[functionName]
     const result = substitute(env, fn.returnType)
     const params = fn.parameters.map(t => substitute(env, t))
     const isI64 = t => t.type === 'i64' || t.type === 'u64'
     if (isI64(result) || params.some(isI64)) {
-      functionName = wrapI64Fn(env, functionName, params, result)
+      wrapperName = wrapI64Fn(env, functionName, params, result)
     }
 
     const paramNames = params.map(_ => gensym('param'))
@@ -98,7 +101,7 @@ export function create_${typeName}_ptr() {
     env.jsBuffer += `
 export function ${functionName}(${paramNames.join(',')}) {
   return ${wrapReturn}(
-    swab.__wasm_exports.${functionName}(
+    swab.__wasm_exports.${wrapperName}(
       ${args.join(',')}
     )
   )
@@ -120,7 +123,7 @@ export function bind({configFile, wasmBinary, cOutput, jsOutput, importSyms, exp
 
 bind({
   configFile: './test/basic-config.json',
-  wasmBinary: 'basic-config.wasm',
+  wasmBinary: 'basic-bindings.wasm',
   cOutput: './test/build/basic-bindings.c',
   jsOutput: './test/build/basic-bindings.mjs',
   importSyms: './test/build/import.syms',
