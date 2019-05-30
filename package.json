@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "description": "Generate JS<->C bindings for use with WASM-compiled code",
   "scripts": {
-    "build": "babel src -d bin",
-    "build-lib": "babel lib -d bin",
+    "build": "tsc",
     "exec": "node bin/binder.js"
   },
   "author": "Ohad Rau <ohadrau@google.com>",
@@ -14,7 +13,9 @@
     "@babel/core": "^7.4.4",
     "@babel/node": "^7.2.2",
     "@babel/plugin-syntax-bigint": "^7.4.4",
-    "@babel/preset-env": "^7.4.4"
+    "@babel/preset-env": "^7.4.4",
+    "@types/node": "^12.0.3",
+    "typescript": "^3.5.1"
   },
   "dependencies": {
     "swablib": "file:lib"

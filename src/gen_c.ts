@@ -1,12 +1,12 @@
-import { gensym } from './env.js'
-import { ctypes, getDestructor } from './types.js'
+import { gensym, Env } from './env'
+import { getDestructor, CType } from './types'
 
 // Pretty-print types to an abstract declarator
 // http://c0x.coding-guidelines.com/6.7.6.html (yeah, idk either)
 // see also: https://www.cs.dartmouth.edu/~mckeeman/cs48/references/c.html
 // see also x2: https://cdecl.org/
 // Basically, abstract declarators can't really be represented recursively I think :/
-export function type2ctype(type, buffer = '') {
+export function formatCType(ctype: CType, buffer: string = ''): string {
   /* This buffer is really important to this function working. We have to utilize
    * tail-recursion to do the recursion top-down. Why? The way that C declarators
    * work is that the as we descend into the type tree, the new type information
@@ -18,10 +18,10 @@ export function type2ctype(type, buffer = '') {
   // Make sure to #include <stdbool.h> & #include <stdint.h>
 
   // If we substituted the type already, go with the unsubstituted version
-  if (type.orig) {
-    return type2ctype(type.orig, buffer);
+  if (ctype.orig) {
+    return formatCType(ctype.orig, buffer);
   }
-  switch (type.type) {
+  switch (ctype.kind) {
     case 'bool':
       return `bool ${buffer}`
     case 'char':
@@ -47,59 +47,59 @@ export function type2ctype(type, buffer = '') {
     case 'f64':
       return `double ${buffer}`
     case 'pointer':
-      return type2ctype(type.params[0], `*${buffer}`)
+      return formatCType(ctype.to, `*${buffer}`)
     case 'array':
       // Make sure not to generate empty parens (parse error)
       if (buffer !== '') {
-        return type2ctype(type.params[0], `(${buffer})[${type.params[1]}]`)
+        return formatCType(ctype.of, `(${buffer})[${ctype.length}]`)
       } else {
-        return type2ctype(type.params[0], `[${type.params[1]}]`)
+        return formatCType(ctype.of, `[${ctype.length}]`)
       }
     case 'functionPointer':
-      // WARN: Map passes indices. Don't want to interpret that as buffer
-      const argTypes = type.params[0].map((type, _) => type2ctype(type))
-      return type2ctype(type.params[1], `(*${buffer})(${argTypes.join(',')})`)
+      // WARN: Map passes indices. Don't want to interpret that as buffer, so don't .map(formatCType)
+      const argTypes = ctype.takes.map((ty: CType) => formatCType(ty))
+      return formatCType(ctype.returns, `(*${buffer})(${argTypes.join(',')})`)
     case 'enum':
-      let enumFields = type.params
+      let enumFields = ctype.values
       return `enum { ${enumFields.join(',')} } ${buffer}`
     case 'struct':
       let structFields = ''
-      for (let key in type.params) {
-        structFields += type2cdecl(type.params[key], key) + ';'
+      for (let key in ctype.fields) {
+        structFields += formatCDecl(ctype.fields[key], key) + ';'
       }
       return `struct { ${structFields} } ${buffer}`
     case 'union':
       let unionFields = ''
-      for (let key in type.params) {
-        unionFields += type2cdecl(type.params[key], key) + ';'
+      for (let key in ctype.fields) {
+        unionFields += formatCDecl(ctype.fields[key], key) + ';'
       }
       return `union { ${unionFields} } ${buffer}`
     case 'void':
       return `void ${buffer}`
-    default: // Unknown type
-      return `${type.type} ${buffer}`
+    case 'user': // Unknown type
+      return `${ctype.name} ${buffer}`
   }
 }
 
 // Like type2ctype, but for concrete declarators
-export function type2cdecl(type, name) {
-  return type2ctype(type, name)
+export function formatCDecl(ctype: CType, name: string): string {
+  return formatCType(ctype, name)
 }
 
 // Like type2cdecl, but for function headers
-export function type2cFnDecl(name, argTypes, argNames, retType) {
-  const argDecls = argTypes.map((type, index) => type2cdecl(type, argNames[index]))
-  return type2cdecl(retType, `${name}(${argDecls.join(',')})`)
+export function formatFunctionDecl(name: string, args: { [name: string]: CType }, retType: CType) {
+  const argDecls = Object.entries(args).map(([name, ctype]: [string, CType]) => formatCDecl(ctype, name))
+  return formatCDecl(retType, `${name}(${argDecls.join(',')})`)
 }
 
-export function wrapCopy(env, type) {
-  const key = JSON.stringify(type)
+export function wrapCopy(env: Env, ctype: CType) {
+  const key = JSON.stringify(ctype)
 
-  const copyName = (obj) => {
+  const copyName = (obj: CType) => {
     const unsubbed = obj.orig || obj;
-    if (!(unsubbed.type in ctypes)) {
+    if (unsubbed.kind === 'user') {
       // If the name is like `struct t` we want to only take the `t`
-      const components = unsubbed.type.split(/\s+/g)
+      const components = unsubbed.name.split(/\s+/g)
       const name = components[components.length - 1]
       return `copy_${name}`
     } else {
@@ -107,13 +107,13 @@ export function wrapCopy(env, type) {
     }
   }
 
-  const copy = gensym(copyName(type)), src = gensym('src'), dst = gensym('dest')
+  const copy = gensym(copyName(ctype)), src = gensym('src'), dst = gensym('dest')
 
-  const ptrType = { type: 'pointer', params: [ type ] }
+  const ptrType: CType = { kind: 'pointer', to: ctype }
 
   env.cBuffer += `
-${type2cFnDecl(copy, [ptrType, type], [dst, src], { type: 'void' })} {
-  memcpy(${dst}, &${src}, sizeof(${type2ctype(type)}));
+${formatFunctionDecl(copy, { [dst]: ptrType, [src]: ctype }, { kind: 'void' })} {
+  memcpy(${dst}, &${src}, sizeof(${formatCType(ctype)}));
 }
 `
   env.copyTable[key] = copy
@@ -123,13 +123,13 @@ ${type2cFnDecl(copy, [ptrType, type], [dst, src], { type: 'void' })} {
 
 // QUESTION: Should these take parameters or return uninitialized data?
 // FWIW Uninitialized makes MUCH more sense for unions
-export function wrapConstructorDestructor(env, type) {
-  const isI64 = t => t.type === 'i64' || t.type === 'u64'
-  const constructorDestructorName = (obj) => {
+export function wrapConstructorDestructor(env: Env, ctype: CType) {
+  const isI64 = (t: CType) => t.kind === 'i64' || t.kind === 'u64'
+  const constructorDestructorName = (obj: CType) => {
     const unsubbed = obj.orig || obj
-    if (!(unsubbed.type in ctypes)) {
+    if (unsubbed.kind === 'user') {
       // If the name is like `struct t` we want to only take the `t`
-      const components = unsubbed.type.split(/\s+/g)
+      const components = unsubbed.kind.split(/\s+/g)
       const name = components[components.length - 1]
       return [`create_${name}`, `delete_${name}`]
     } else {
@@ -137,35 +137,37 @@ export function wrapConstructorDestructor(env, type) {
     }
   }
 
-  const key = JSON.stringify(type)
+  const key = JSON.stringify(ctype)
 
   const [constructorName, destructorName] =
-        type.type === 'pointer' ? constructorDestructorName(type.params[0]) : constructorDestructorName(type)
+    ctype.kind === 'pointer'
+      ? constructorDestructorName(ctype.to)
+      : constructorDestructorName(ctype)
 
   const constructor = gensym(constructorName), destructor = gensym(destructorName)
 
   const obj = gensym('object')
 
-  switch (type.type) {
+  switch (ctype.kind) {
     case 'pointer':
-      const subtype = type.params[0]
+      const subtype = ctype.to
 
-      switch (subtype.type) {
+      switch (subtype.kind) {
       case 'struct':
         const freeFields = []
-        for (let field in subtype.params) {
-          const fieldType = subtype.params[field]
-          if (fieldType.type === 'pointer') {
+        for (let field in subtype.fields) {
+          const fieldType = subtype.fields[field]
+          if (fieldType.kind === 'pointer') {
             freeFields.push(`if (${obj}->${field}) ${getDestructor(env, fieldType)}(${obj}->${field});`)
           }
         }
 
         env.cBuffer += `
-${type2cFnDecl(constructor, [], [], type)} {
-  return (${type2ctype(type)}) malloc(sizeof(${type2ctype(type)}));
+${formatFunctionDecl(constructor, {}, ctype)} {
+  return (${formatCType(ctype)}) malloc(sizeof(${formatCType(ctype)}));
 }
 
-${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+${formatFunctionDecl(destructor, { [obj]: ctype }, { kind: 'void' })} {
   // If struct, free all the fields that are pointers
   ${freeFields.join('\n  ')}
   free(${obj});
@@ -194,11 +196,11 @@ Do not rely on '${destructor}' to free anything other than the union pointer.
 `)
       default:
         env.cBuffer += `
-${type2cFnDecl(constructor, [], [], type)} {
-  return (${type2ctype(type)}) malloc(sizeof(${type2ctype(type)}));
+${formatFunctionDecl(constructor, {}, ctype)} {
+  return (${formatCType(ctype)}) malloc(sizeof(${formatCType(ctype)}));
 }
 
-${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+${formatFunctionDecl(destructor, { [obj]: ctype }, { kind: 'void' })} {
   free(${obj});
 }
 `
@@ -209,29 +211,27 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
         return [constructor, destructor]
       }
   case 'struct':
-    let params = [], names = [], assignments = []
+    let structArgs: { [key: string]: CType } = {}, assignments = []
     const freeFields = []
-    for (let field in type.params) {
-      const fieldType = type.params[field]
-      params.push(fieldType)
-
+    for (let field in ctype.fields) {
       const name = gensym(field)
-      names.push(name)
+      const fieldType = ctype.fields[field]
+      
+      structArgs[name] = fieldType
 
       assignments.push(`.${field} = ${name}`)
 
-      if (fieldType.type === 'pointer') {
+      if (fieldType.kind === 'pointer') {
         freeFields.push(`if (${obj}.${field}) ${getDestructor(env, fieldType)}(${obj}.${field});`)
       }
     }
 
-    // FIXME: This solution isn't really scalable for unions, as it can overwrite a parameter. How do we improve?
-        env.cBuffer += `
-${type2cFnDecl(constructor, params, names, type)} {
-  return (${type2ctype(type)}) { ${assignments.join(',')} };
+    env.cBuffer += `
+${formatFunctionDecl(constructor, structArgs, ctype)} {
+  return (${formatCType(ctype)}) { ${assignments.join(',')} };
 }
 
-${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
+${formatFunctionDecl(destructor, { [obj]: ctype }, { kind: 'void' })} {
   // If struct, free all the fields that are pointers
   ${freeFields.join('\n  ')}
 }
@@ -243,45 +243,43 @@ ${type2cFnDecl(destructor, [type], [obj], { type: 'void' })} {
     return [constructor, destructor]
   case 'union':
     const tag = gensym('tag'), union = gensym('union')
-    let uparams = [{type: 'i32'}], unames = [tag], uassignments = []
-    for (let field in type.params) {
-      const fieldType = type.params[field]
-      uparams.push(fieldType)
-
+    let unionArgs: { [key: string]: CType } = { [tag]: { kind: 'i32' } }, uassignments = []
+    for (let field in ctype.fields) {
       const name = gensym(field)
-      unames.push(name)
+      const fieldType = ctype.fields[field]
+      unionArgs[name] = fieldType
 
       uassignments.push(`
-  case ${Object.keys(type.params).indexOf(field)}:
+  case ${Object.keys(ctype.fields).indexOf(field)}:
     ${union}.${field} = ${name};
     break;`)
     }
 
     env.cBuffer += `
-${type2cFnDecl(constructor, uparams, unames, type)} {
-  ${type2ctype(type)} ${union};
+${formatFunctionDecl(constructor, unionArgs, ctype)} {
+  ${formatCType(ctype)} ${union};
   switch (${tag}) {
   ${uassignments.join('')}
   };
   return ${union};
 }
 `
-    console.warn(`A destructor for ${type2ctype(type)} could not be generated.`)
+    console.warn(`A destructor for ${formatCType(ctype)} could not be generated.`)
     env.constructorTable[key] = constructor
     env.exports.add(constructor)
     return [constructor]
   default:
-    throw `Can't generate constructor/destructor for type ${type2ctype(type)}`
+    throw `Can't generate constructor/destructor for type ${formatCType(ctype)}`
   }
 }
 
-export function wrapAccessors(env, type) {
-  const isI64 = t => t.type === 'i64' || t.type === 'u64'
-  const accessorName = (obj, field) => {
+export function wrapAccessors(env: Env, ctype: CType): { [key: string]: { getter?: string, setter?: string } } {
+  const isI64 = (t: CType) => t.kind === 'i64' || t.kind === 'u64'
+  const accessorName = (obj: CType, field: string) => {
     const unsubbed = obj.orig || obj;
-    if (!(unsubbed.type in ctypes)) {
+    if (unsubbed.kind === 'user') {
       // If the name is like `struct t` we want to only take the `t`
-      const components = unsubbed.type.split(/\s+/g)
+      const components = unsubbed.kind.split(/\s+/g)
       const name = components[components.length - 1]
       return [`${name}_get_${field}`, `${name}_set_${field}`]
     } else {
@@ -293,38 +291,38 @@ export function wrapAccessors(env, type) {
    * require a dereference operation to access the fields. As a result, we just
    * handle these as two separate cases (despite the fact that they're almost
    * identical apart from those two differences). TODO: Cleanup? */
-  switch (type.type) {
+  switch (ctype.kind) {
     case 'pointer':
-      const subtype = type.params[0]
-      switch (subtype.type) {
+      const subtype = ctype.to
+      switch (subtype.kind) {
       case 'struct':
       case 'union':
         // Wrap the accessors for a reference type
-        let accessors = {}
-        for (let field in subtype.params) {
+        let accessors: { [key: string]: { getter?: string, setter?: string } } = {}
+        for (let field in subtype.fields) {
           // Check if the field is i64, if so wrap the i64 access
-          if (isI64(subtype.params[field])) {
-            const fieldType = { type: '__wasm_big_int', params: [] }
-            const ptrType = { type: 'pointer', params: [subtype] }
+          if (isI64(subtype.fields[field])) {
+            const fieldType: CType = { kind: 'user', name: '__wasm_big_int' }
+            const ptrType: CType = { kind: 'pointer', to: subtype }
 
             const [getterName, setterName] = accessorName(subtype, field)
             const getter = gensym(getterName), setter = gensym(setterName)
 
             const obj = gensym('object'), value = gensym('value')
             env.cBuffer += `
-${type2cFnDecl(getter, [ptrType], [obj], fieldType)} {
+${formatFunctionDecl(getter, { [obj]: ptrType }, fieldType)} {
   int64_t ${value} = ${obj}->${field};
   return __js_new_big_int(${value} >> 32, ${value} & 0xFFFFFFFF);
 }
 
-${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', params: [] })} {
+${formatFunctionDecl(setter, { [obj]: ptrType, [value]: fieldType }, { kind: 'void' })} {
   ${obj}->${field}  = __js_big_int_upper(${value}) << 32;
   ${obj}->${field} |= __js_big_int_lower(${value});
 }
 `
             accessors[field] = { getter, setter }
           } else {
-            const ptrType = { type: 'pointer', params: [subtype] }
+            const ptrType: CType = { kind: 'pointer', to: subtype }
 
             const [getterName, setterName] = accessorName(subtype, field)
             const getter = gensym(getterName), setter = gensym(setterName)
@@ -332,11 +330,11 @@ ${type2cFnDecl(setter, [ptrType, fieldType], [obj, value], { type: 'void', param
             const obj = gensym('object'), value = gensym('value')
             // TODO: Make this code work properly if we're dealing with a value that needs to be copied
             env.cBuffer += `
-${type2cFnDecl(getter, [ptrType], [obj], subtype.params[field])} {
+${formatFunctionDecl(getter, { [obj]: ptrType }, subtype.fields[field])} {
   return ${obj}->${field};
 }
 
-${type2cFnDecl(setter, [ptrType, subtype.params[field]], [obj, value], { type: 'void', params: [] })} {
+${formatFunctionDecl(setter, { [obj]: ptrType, [value]: subtype.fields[field] }, { kind: 'void' })} {
   ${obj}->${field} = ${value};
 }
 `
@@ -344,38 +342,38 @@ ${type2cFnDecl(setter, [ptrType, subtype.params[field]], [obj, value], { type: '
           }
         }
 
-        env.accessorTable[JSON.stringify(type)] = accessors
+        env.accessorTable[JSON.stringify(ctype)] = accessors
         return accessors
       default:
-        throw `Can't generate accessors for type ${type2ctype(type)}`
+        throw `Can't generate accessors for type ${formatCType(ctype)}`
       }
     case 'struct':
     case 'union':
       // Wrap the accessors for a value type
-      let accessors = {}
-      for (let field in type.params) {
+      let accessors: { [key: string]: { getter?: string, setter?: string } } = {}
+      for (let field in ctype.fields) {
         // Check if the field is i64, if so wrap the i64 access
-        if (isI64(type.params[field])) {
-          const fieldType = { type: '__wasm_big_int', params: [] }
+        if (isI64(ctype.fields[field])) {
+          const fieldType: CType = { kind: 'user', name: '__wasm_big_int' }
 
-          const [getterName] = accessorName(type, field)
+          const [getterName] = accessorName(ctype, field)
           const getter = gensym(getterName)
 
-          const obj = gensym('object')
+          const obj = gensym('object'), value = gensym('value')
           env.cBuffer += `
-${type2cFnDecl(getter, [type], [obj], fieldType)} {
+${formatFunctionDecl(getter, { [obj]: ctype }, fieldType)} {
   int64_t ${value} = ${obj}.${field};
   return __js_new_big_int(${value} >> 32, ${value} & 0xFFFFFFFF);
 }
 `
           accessors[field] = { getter }
         } else {
-          const [getterName] = accessorName(type, field)
+          const [getterName] = accessorName(ctype, field)
           const getter = gensym(getterName)
 
           const obj = gensym('object')
           env.cBuffer += `
-${type2cFnDecl(getter, [type], [obj], type.params[field])} {
+${formatFunctionDecl(getter, { [obj]: ctype }, ctype.fields[field])} {
   return ${obj}.${field};
 }
 `
@@ -383,26 +381,26 @@ ${type2cFnDecl(getter, [type], [obj], type.params[field])} {
         }
       }
 
-      env.accessorTable[JSON.stringify(type)] = accessors
+      env.accessorTable[JSON.stringify(ctype)] = accessors
       return accessors
     default:
-      throw `Can't generate accessors for type ${type2ctype(type)}`
+      throw `Can't generate accessors for type ${formatCType(ctype)}`
   }
 }
 
-export function wrapSizeof(env, type) {
+export function wrapSizeof(env: Env, type: CType): string {
   const wrapper = gensym('sizeof')
   env.sizeofTable[JSON.stringify(type)] = wrapper
 
   env.cBuffer += `
 size_t ${wrapper}() {
-  return sizeof(${type2ctype(type)});
+  return sizeof(${formatCType(type)});
 }
 `
   return wrapper
 }
 
-export function wrapI64Fn(env, fn, argTypes, retType) {
+export function wrapI64Fn(env: Env, fn: string, argTypes: CType[], retType: CType) {
   env.imports.add("__js_new_big_int")
   env.imports.add("__js_big_int_upper")
   env.imports.add("__js_big_int_lower")
@@ -412,9 +410,9 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
   env.i64Table[fn] = wrapper
   env.exports.add(wrapper)
 
-  const retype = oldType =>
-    oldType.type === 'i64' || oldType.type === 'u64'
-      ? { type: '__wasm_big_int', params: [] }
+  const retype = (oldType: CType): CType =>
+    oldType.kind === 'i64' || oldType.kind === 'u64'
+      ? { kind: 'user', name: '__wasm_big_int' }
       : oldType
 
   const actualReturnType = retype(retType)
@@ -422,9 +420,9 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
   const actualArgTypes = argTypes.map(oldType => retype(oldType))
 
   const wrapReturn =
-    retType.type === 'i64' || retType.type === 'u64'
-  const wrapArg = index =>
-    argTypes[index].type === 'i64' || argTypes[index].type === 'u64'
+    retType.kind === 'i64' || retType.kind === 'u64'
+  const wrapArg = (index: number) =>
+    argTypes[index].kind === 'i64' || argTypes[index].kind === 'u64'
 
   const wrappedArgs = actualArgNames.map((name, index) =>
     wrapArg(index)
@@ -437,8 +435,11 @@ export function wrapI64Fn(env, fn, argTypes, retType) {
       ? `__wasm_wrap_i64(${fn}(${wrappedArgs.join(',')}))`
       : `${fn}(${wrappedArgs.join(',')})`
 
+  let args: { [key: string]: CType } = {}
+  actualArgNames.map((name, index) => args[name] = actualArgTypes[index])
+
   env.cBuffer += `
-${type2cFnDecl(wrapper, actualArgTypes, actualArgNames, actualReturnType)} {
+${formatFunctionDecl(wrapper, args, actualReturnType)} {
   return ${wrappedCall};
 }
 `

@@ -12,62 +12,58 @@
   ],
   "types": {
     "version_info": {
-      "type": "struct",
-      "params": {
-        "major": { "type": "int" },
-        "minor": { "type": "int" },
-        "patch": { "type": "int" }
+      "kind": "struct",
+      "fields": {
+        "major": { "kind": "int" },
+        "minor": { "kind": "int" },
+        "patch": { "kind": "int" }
       }
     },
     "options": {
-      "type": "struct",
-      "params": {
-        "size": { "type": "int" },
-        "version": { "type": "pointer", "params": [ { "type": "version_info" } ] }
+      "kind": "struct",
+      "fields": {
+        "size": { "kind": "int" },
+        "version": { "kind": "pointer", "to": { "kind": "version_info" } }
       }
     },
     "value": {
-      "type": "union",
-      "params": {
-        "i": { "type": "int" },
-        "f": { "type": "float" }
+      "kind": "union",
+      "fields": {
+        "i": { "kind": "int" },
+        "f": { "kind": "float" }
       }
     }
   },
   "functions": {
     "make_options": {
-      "parameters": [ { "type": "int" } ],
-      "returnType": { "type": "pointer", "params": [ { "type": "options" } ] }
+      "takes": [ { "kind": "int" } ],
+      "returns": { "kind": "pointer", "to": { "kind": "options" } }
     },
     "make_version_info": {
-      "parameters": [ { "type": "int" }, { "type": "int"}, { "type": "int" } ],
-      "returnType": { "type": "pointer", "params": [ { "type": "version_info" } ] }
+      "takes": [ { "kind": "int" }, { "kind": "int"}, { "kind": "int" } ],
+      "returns": { "kind": "pointer", "to": { "kind": "version_info" } }
     },
     "addI64": {
-      "returnType": { "type": "int64_t" },
-      "parameters": [ { "type": "i64" }, { "type": "i64" } ]
+      "takes": [ { "kind": "i64" }, { "kind": "i64" } ],
+      "returns": "int64_t"
     },
     "arrayStuff": {
-      "returnType": { "type": "pointer", "params": [ { "type": "int" } ] },
-      "parameters": [ { "type": "array", "params": [ { "type": "int" }, 3 ] } ]
+      "takes": [ { "kind": "array", "of": { "kind": "int" }, "length": 3 } ],
+      "returns": { "kind": "pointer", "to": { "kind": "int" } }
     },
     "stringStuff": {
-      "returnType": { "type": "pointer", "params": [ { "type": "char" } ] },
-      "parameters": [ { "type": "pointer", "params": [ { "type": "char" } ] } ]
+      "takes": [ { "kind": "pointer", "to": { "kind": "char" } } ],
+      "returns": { "kind": "pointer", "to": { "kind": "char" } }
     },
     "callback": {
-      "returnType": { "type": "void" },
-      "parameters": [ { "type": "functionPointer", "params": [
-        [ { "type": "int" } ],
-        { "type": "void" }
-      ] } ]
+      "takes": [
+        { "kind": "functionPointer", "takes": [ { "kind": "int" } ], "returns": { "kind": "void" } }
+      ],
+      "returns": { "kind": "void" }
     },
     "uncallback": {
-      "returnType": { "type": "functionPointer", "params": [
-        [ { "type": "int" } ],
-        { "type": "int" }
-      ] },
-      "parameters": []
+      "takes": [],
+      "returns": { "kind": "functionPointer", "takes": [ { "type": "int" } ], "returns": { "type": "int" } }
     }
   }
 }

@@ -1,43 +1,77 @@
-import { gensym } from './env.js'
+import { gensym, Env } from './env.js'
 import { cacheWrapper } from './callback.js'
-import { type2ctype, wrapSizeof, wrapAccessors, wrapConstructorDestructor, wrapCopy } from './gen_c.js'
+import { wrapSizeof, wrapAccessors, wrapConstructorDestructor, wrapCopy } from './gen_c.js'
 
-export const jstypes = Object.freeze([
-  'boolean',
-  'number',
-  'string',
-  'array',
-  'object',
-  'function',
-  'void',
-  'null',
-  'undefined',
-  'any'
-])
+interface Bool { kind: "bool", orig?: CType }
+interface Char { kind: "char", orig?: CType }
+interface U8 { kind: "u8", orig?: CType }
+interface I8 { kind: "i8", orig?: CType }
+interface U16 { kind: "u16", orig?: CType }
+interface I16 { kind: "i16", orig?: CType }
+interface U32 { kind: "u32", orig?: CType }
+interface I32 { kind: "i32", orig?: CType }
+interface U64 { kind: "u64", orig?: CType }
+interface I64 { kind: "i64", orig?: CType }
+interface F32 { kind: "f32", orig?: CType }
+interface F64 { kind: "f64", orig?: CType }
+interface Pointer {
+  kind: "pointer",
+  to: CType,
+  orig?: CType
+}
+interface Array {
+  kind: "array",
+  of: CType,
+  length: number,
+  orig?: CType
+}
+interface FunctionPointer {
+  kind: "functionPointer",
+  takes: CType[],
+  returns: CType,
+  orig?: CType
+}
+interface Enum {
+  kind: "enum",
+  values: string[],
+  orig?: CType
+}
+interface Struct {
+  kind: "struct",
+  fields: { [key: string]: CType },
+  orig?: CType
+}
+interface Union {
+  kind: "union",
+  fields: { [key: string]: CType },
+  orig?: CType
+}
+interface Void { kind: "void", orig?: CType }
+interface User { kind: "user", name: string, orig?: CType }
 
-export const ctypes = Object.freeze([
-  'bool',
-  'char',
-  'u8', 'i8',
-  'u16', 'i16',
-  'u32', 'i32',
-  'u64', 'i64',
-  'f32',
-  'f64',
-  'pointer',
-  'array',
-  'functionPointer',
-  'enum',
-  'struct',
-  'union',
-  'void'
-])
+export type CType =
+  | Bool
+  | Char
+  | U8 | I8
+  | U16 | I16
+  | U32 | I32
+  | U64 | I64
+  | F32
+  | F64
+  | Pointer
+  | Array
+  | FunctionPointer
+  | Enum
+  | Struct
+  | Union
+  | Void
+  | User
 
-const id = '__wasm_identity'
+const id: string = '__wasm_identity'
 
 // QUESTION: How do we deal with recursion?
-export function substitute(env, type) {
-  switch (type.type) {
+export function substitute(env: Env, ctype: CType): CType {
+  switch (ctype.kind) {
     case 'bool':
     case 'char':
     case 'u8':
@@ -52,37 +86,42 @@ export function substitute(env, type) {
     case 'f64':
     case 'enum':
     case 'void':
-      return type
+      return ctype
     case 'pointer':
-      return { type: type.type, params: [substitute(env, type.params[0])], orig: (type.orig || type) }
+      return { kind: ctype.kind, to: substitute(env, ctype.to), orig: ctype.orig || ctype }
     case 'array':
-      return { type: type.type, params: [substitute(env, type.params[0]), type.params[1]], orig: (type.orig || type) }
+      return { kind: ctype.kind, of: substitute(env, ctype.of), length: ctype.length, orig: ctype.orig || ctype }
     case 'functionPointer':
-      return { type: 'functionPointer', params: [
-        type.params[0].map(subtype => substitute(env, subtype)),
-        substitute(env, type.params[1])
-      ], orig: (type.orig || type) }
+      return {
+        kind: ctype.kind,
+        takes: ctype.takes.map(ty => substitute(env, ty)),
+        returns: substitute(env, ctype.returns),
+        orig: ctype.orig || ctype
+      }
     case 'struct':
     case 'union':
-      const newFields = {}
-      for (let field in type.params) {
-        newFields[field] = substitute(env, type.params[field])
-      }
-      return { type: type.type, params: newFields, orig: (type.orig || type) }
-    default:
-      if (type.type in env.substitutions) {
+        const newFields: { [key: string]: CType } = {}
+        for (let field in ctype.fields) {
+          newFields[field] = substitute(env, ctype.fields[field])
+        }
+        return <Struct | Union>{ kind: ctype.kind, fields: newFields, orig: ctype.orig || ctype }
+    case 'user':
+      if (ctype.name in env.substitutions) {
         // In order to not infinite loop on recursion, we don't keep substituting
-        let result = env.substitutions[type.type]
-        result.orig = type.orig || type
+        let result = env.substitutions[ctype.name]
+        result.orig = ctype.orig || ctype
         return result
       } else {
-        return { type: 'void', params: [], orig: (type.orig || type) }
+        return { kind: 'void', orig: ctype.orig || ctype }
       }
   }
 }
 
-export function c2wasm_type(c) {
-  switch (c.type) {
+export type WasmType =
+  "i32" | "i64" | "f32" | "f64"
+
+export function c2wasm_type(ctype: CType): WasmType | "void" {
+  switch (ctype.kind) {
     case 'u64': case 'i64':
       return 'i64'
     case 'f32':
@@ -96,8 +135,8 @@ export function c2wasm_type(c) {
   }
 }
 
-export function c2pointer_type(c) {
-  switch (c.type) {
+export function c2pointer_type(ctype: CType): CType['kind'] {
+  switch (ctype.kind) {
     case 'bool':
     case 'char':
     case 'u8':
@@ -125,67 +164,67 @@ export function c2pointer_type(c) {
     case 'f64':
       return 'f64'
     default:
-      return c.type
+      return ctype.kind
   }
 }
 
-export function getSizeof(env, c) {
-  let type = substitute(env, c)
-  let key = JSON.stringify(type)
+export function getSizeof(env: Env, ctype: CType): string {
+  let subbed = substitute(env, ctype)
+  let key = JSON.stringify(subbed)
   if (key in env.sizeofTable) {
     env.exports.add(env.sizeofTable[key])
     return `swab.__wasm_exports.${env.sizeofTable[key]}`
   } else {
-    const sizeof = wrapSizeof(env, type)
+    const sizeof = wrapSizeof(env, ctype)
     env.exports.add(sizeof)
     return `swab.__wasm_exports.${sizeof}`
   }
 }
 
-export function getAccessors(env, c) {
-  let type = substitute(env, c)
-  let key = JSON.stringify(type)
+export function getAccessors(env: Env, ctype: CType): { [key: string]: { getter?: string, setter?: string } } {
+  let subbed = substitute(env, ctype)
+  let key = JSON.stringify(subbed)
   if (key in env.accessorTable) {
     return env.accessorTable[key]
   } else {
-    return wrapAccessors(env, type)
+    return wrapAccessors(env, ctype)
   }
 }
 
-export function getConstructor(env, c) {
-  let type = substitute(env, c)
-  let key = JSON.stringify(type)
+export function getConstructor(env: Env, ctype: CType): string {
+  let subbed = substitute(env, ctype)
+  let key = JSON.stringify(subbed)
   if (key in env.constructorTable) {
     return env.constructorTable[key]
   } else {
-    return wrapConstructorDestructor(env, type)[0]
+    return wrapConstructorDestructor(env, ctype)[0]
   }
 }
 
-export function getDestructor(env, c) {
-  let type = substitute(env, c)
-  let key = JSON.stringify(type)
+export function getDestructor(env: Env, ctype: CType): string {
+  let subbed = substitute(env, ctype)
+  let key = JSON.stringify(subbed)
   if (key in env.destructorTable) {
     return env.destructorTable[key]
   } else {
-    return wrapConstructorDestructor(env, type)[1]
+    return wrapConstructorDestructor(env, ctype)[1]
   }
 }
 
-export function getCopy(env, c) {
-  let type = substitute(env, c)
-  let key = JSON.stringify(type)
+export function getCopy(env: Env, ctype: CType): string {
+  let subbed = substitute(env, ctype)
+  let key = JSON.stringify(subbed)
   if (key in env.copyTable) {
     return env.copyTable[key]
   } else {
-    return wrapCopy(env, type)
+    return wrapCopy(env, ctype)
   }
 }
 
 /* Generate code for type conversion from C -> JS
  * @return Conversion code (string) if conversion is necessary, otherwise `false`
  */
-export function c2js(env, c) {
+export function c2js(env: Env, ctype: CType): string {
   /* How does signed/unsigned conversion work?
    * WASM doesn't store 'signededness,' but the
    * default interpretation is going to be as a
@@ -211,11 +250,11 @@ export function c2js(env, c) {
    */
 
   // Perform caching to handle recursive case
-  const key = JSON.stringify(c)
+  const key = JSON.stringify(ctype)
   if (key in env.c2jsTable) {
     return env.c2jsTable[key]
   }
-  switch (c.type) {
+  switch (ctype.kind) {
     case 'bool':
       env.c2jsTable[key] = id
       return env.c2jsTable[key]
@@ -277,7 +316,8 @@ function ${c2i64}(${i64}) {
       env.c2jsTable[key] = id
       return env.c2jsTable[key]
     case 'pointer':
-      switch (c.params[0].type) {
+      const subtype = ctype.to
+      switch (subtype.kind) {
       case 'char':
         const c2str = gensym('c2str'), charPtr = gensym('charPtr'), str = gensym('str')
         const charVal = gensym('charVal'), charIdx = gensym('charIndex')
@@ -307,7 +347,7 @@ function ${c2str}(${charPtr}) {
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2numptr}(${numptr}) {
-  return new swab.__WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
+  return new swab.__WasmPointer(${numptr}, ${id}, ${id}, ${getSizeof(env, ctype)}(), '${c2pointer_type(ctype.to)}');
 }
 `
         env.c2jsTable[key] = c2numptr
@@ -318,18 +358,16 @@ function ${c2numptr}(${numptr}) {
          * value types here. The primary reason in this case is caching, as we don't want to cache
          * the pointer version of the accessors and the value version of the accessors under the same
          * name. */
-        const key = JSON.stringify(c)
-        const subtype = c.params[0]
 
-        const accessors = getAccessors(env, c)
+        const accessors = getAccessors(env, ctype)
 
         let methods = []
         const c2obj = gensym('c2object'), addr = gensym('address'), obj = gensym('object')
-        for (let field in subtype.params) {
+        for (let field in subtype.fields) {
           const value = gensym('value')
-          const to_js = c2js(env, subtype.params[field]), to_c = js2c(env, subtype.params[field])
+          const to_js = c2js(env, subtype.fields[field]), to_c = js2c(env, subtype.fields[field])
 
-          const getter = accessors[field]['getter'], setter = accessors[field]['setter']
+          const getter = accessors[field].getter!, setter = accessors[field].setter!
 
           env.exports.add(getter)
           methods.push(`get ${field}() { return ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
@@ -338,7 +376,7 @@ function ${c2numptr}(${numptr}) {
           methods.push(`set ${field}(${value}) { ${to_c}(swab.__wasm_exports.${setter}(${obj}, ${value})); }`)
         }
 
-        const destroy = getDestructor(env, c)
+        const destroy = getDestructor(env, ctype)
         if (destroy) {
           methods.push(`destroy: (() => swab.__wasm_exports.${destroy}(${obj}))`)
         }
@@ -354,9 +392,9 @@ function ${c2obj}(${addr}) {
     (${obj} => ({
       ${methods.join(',\n      ')}
     })),
-    ${js2c(env, c)},
-    ${getSizeof(env, c.params[0])}(),
-    '${c2pointer_type(c.params[0])}'
+    ${js2c(env, ctype)},
+    ${getSizeof(env, subtype)}(),
+    '${c2pointer_type(subtype)}'
   );
 }
 `
@@ -370,33 +408,33 @@ function ${c2obj}(${addr}) {
       case 'enum':
       case 'void':
         const c2ptr = gensym('c2ptr'), ptr = gensym('ptr')
-        const convert = c2js(env, c.params[0])
-        const unconvert = js2c(env, c.params[0])
+        const convert = c2js(env, subtype)
+        const unconvert = js2c(env, subtype)
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
-  return new swab.__WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, c)}(), '${c2pointer_type(c.params[0])}');
+  return new swab.__WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, ctype)}(), '${c2pointer_type(subtype)}');
 }
 `
         env.c2jsTable[key] = c2ptr
         return c2ptr
       default:
         // Unknown type, let's perform a substitution
-        return c2js(env, { type: "pointer", params: [ substitute(env, c.params[0]) ] })
+        return c2js(env, { kind: "pointer", to: substitute(env, subtype) })
       }
     case 'array':
       const c2arr = gensym('c2array'), cArray = gensym('cArray'), array = gensym('array')
       const idx = gensym('index'), ptr = gensym('pointer')
-      const elemtype = c.params[0]
-      const arrsize = c.params[1]
-      const typesize = getSizeof(env, c)
+      const elemtype = ctype.of
+      const arrsize = ctype.length
+      const typesize = getSizeof(env, elemtype)
 
       const convert = c2js(env, elemtype), unconvert = js2c(env, elemtype)
       env.exports.add('free')
       env.jsBuffer += `
 function ${c2arr}(${cArray}) {
   let ${array} = [];
-  let ${ptr} = new swab.__WasmPointer(${cArray}, ${convert}, ${unconvert} ${typesize}(), '${c2pointer_type(elemtype)}');
+  let ${ptr} = new swab.__WasmPointer(${cArray}, ${convert}, ${unconvert}, ${typesize}(), '${c2pointer_type(elemtype)}');
   for (let ${idx} = 0; ${idx} < ${arrsize}; ${idx}++) {
     ${array}[${idx}] = ${convert}(${ptr}.offset(idx));
   }
@@ -406,8 +444,8 @@ function ${c2arr}(${cArray}) {
       env.c2jsTable[key] = c2arr
       return c2arr
     case 'functionPointer':
-      const paramtypes = c.params[0]
-      const returntype = c.params[1]
+      const paramtypes = ctype.takes
+      const returntype = ctype.returns
 
       const c2fp = gensym('c2functionPointer'), fp = gensym('functionPointer')
       const paramnames = paramtypes.map(_ => gensym('param'))
@@ -429,30 +467,30 @@ function ${c2fp}(${fp}) {
       return c2fp
     case 'enum':
       const c2enum = gensym('c2enum'), name = gensym('enum')
-      jsBuffer += `
+      env.jsBuffer += `
 function ${c2enum}(${name}) {
-  return ${JSON.stringify(c.params)}[${name}];
+  return ${JSON.stringify(ctype.values)}[${name}];
 }
 `
       env.c2jsTable[key] = c2enum
       return c2enum
     case 'struct':
     case 'union':
-      const accessors = getAccessors(env, c)
+      const accessors = getAccessors(env, ctype)
 
       let methods = []
       const c2obj = gensym('c2object'), obj = gensym('object')
-      for (let field in c.params) {
+      for (let field in ctype.fields) {
         const value = gensym('value')
-        const to_js = c2js(env, c.params[field]), to_c = js2c(env, c.params[field])
+        const to_js = c2js(env, ctype.fields[field]), to_c = js2c(env, ctype.fields[field])
 
-        const getter = accessors[field]['getter']
+        const getter = accessors[field]['getter']!
 
         env.exports.add(getter)
         methods.push(`get ${field}() { ${to_js}(swab.__wasm_exports.${getter}(${obj})); }`)
       }
 
-      const destroy = getDestructor(env, c)
+      const destroy = getDestructor(env, ctype)
       if (destroy) {
         methods.push(`destroy: (() => swab.__wasm_exports.${destroy}(${obj}))`)
       }
@@ -470,12 +508,12 @@ function ${c2obj}(${obj}) {
       env.c2jsTable[key] = id
       return env.c2jsTable[key]
     default:
-      return c2js(env, substitute(env, c))
+      return c2js(env, substitute(env, ctype))
   }
 }
 
-export function js2c(env, c) {
-  switch (c.type) {
+export function js2c(env: Env, ctype: CType): string {
+  switch (ctype.kind) {
     case 'bool':
       return id
     case 'char':
@@ -508,7 +546,7 @@ export function js2c(env, c) {
     case 'f64':
       return id
     case 'pointer':
-      switch (c.params[0].type) {
+      switch (ctype.to.kind) {
       case 'char':
         // NOTE: We want to make sure that the user frees this at some point!
         const str = gensym('string'), charPtr = gensym('charPtr'), idx = gensym('index')
@@ -518,8 +556,8 @@ export function js2c(env, c) {
 (${str} => {
   const ${charPtr} = new swab.__WasmPointer(
     swab.__wasm_exports.malloc(${str}.length + 1),
-    ${c2js(env, c.params[0])},
-    ${js2c(env, c.params[0])},
+    ${c2js(env, ctype.to)},
+    ${js2c(env, ctype.to)},
     1,
     'i8'
   );
@@ -537,7 +575,7 @@ export function js2c(env, c) {
         return `(${ptr} => ${ptr}.addr)`
       }
     case 'array':
-      const copy = getCopy(env, c)
+      const copy = getCopy(env, ctype)
       env.exports.add('malloc')
       env.exports.add('free')
       env.exports.add(copy)
@@ -548,10 +586,10 @@ export function js2c(env, c) {
 (${arr} => {
   const ${arrPtr} = new swab.__WasmPointer(
     swab.__wasm_exports.malloc(${arr}.length),
-    ${c2js(env, c.params[0])},
-    ${js2c(env, c.params[0])},
-    ${getSizeof(env, c.params[0])}(),
-    '${c2pointer_type(c.params[0])}'
+    ${c2js(env, ctype.of)},
+    ${js2c(env, ctype.of)},
+    ${getSizeof(env, ctype.of)}(),
+    '${c2pointer_type(ctype.of)}'
   );
   for (let ${idx} = 0; ${idx} < ${arr}.length; ${idx}++) {
     swab.__wasm_exports.${copy}(${arrPtr}.offset(${idx}).addr, ${arr}[${idx}]);
@@ -567,8 +605,8 @@ export function js2c(env, c) {
        * - Setup code to perform the JS->C conversions for args + return value
        * - Do the conversion into a JS function
        */
-      const paramtypes = c.params[0]
-      const returntype = c.params[1]
+      const paramtypes = ctype.takes
+      const returntype = ctype.returns
 
       const cparams = paramtypes.map(ctype => c2js(env, ctype))
       const creturn = c2js(env, returntype)
@@ -601,9 +639,10 @@ export function js2c(env, c) {
 })`
     case 'enum':
       // Reverse the enum definition and index into that
-      const enum2num = {}
-      for (let i in c.params) {
-        enum2num[c.params[i]] = i
+      const enum2num: { [key: string]: number } = {}
+      // TypeScript doesn't support for ... in for arrays :(
+      for (let i = 0; i < ctype.values.length; i++) {
+        enum2num[ctype.values[i]] = i
       }
       const name = gensym('enum')
       return `(${name} => ${JSON.stringify(enum2num)}[${name}])`
@@ -615,10 +654,10 @@ export function js2c(env, c) {
       const obj = gensym('object')
 
       let params = []
-      for (let field in c.params) {
+      for (let field in ctype.fields) {
         params.push(`${field}: ${obj}.get_${field}()`)
       }
-      return `(${obj} => ${getConstructor(env, c)}({${params.join(',')}})`
+      return `(${obj} => ${getConstructor(env, ctype)}({${params.join(',')}})`
     case 'void':
       return id
     default:

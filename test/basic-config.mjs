@@ -36,4 +36,4 @@ console.log(basic.stringStuff(string))
 
 basic.callback(x => console.log(x))
 
-console.log(basic.uncallback()(1));
+console.log(basic.uncallback()(1))

@@ -1,32 +1,31 @@
-import { gensym } from './env.js'
-import { c2wasm_type } from './types.js'
+import { gensym, Env } from './env'
+import { c2wasm_type, CType, WasmType } from './types'
 
-export function cacheWrapper(env, paramTypes, returnType) {
-  let wasmParams = paramTypes.map(c2wasm_type)
+export function cacheWrapper(env: Env, paramTypes: CType[], returnType: CType): string {
+  let wasmParams = <WasmType[]>(paramTypes.map(c2wasm_type))
   let wasmReturn = c2wasm_type(returnType)
 
   // See: https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md#language-types
   // QUESTION: What are anyfunc/func/empty & can we utilize them?
-  const encodeType =
+  const encodeType: { [key in WasmType]: number } =
     { 'i32': 0x7f,
       'i64': 0x7e,
       'f32': 0x7d,
-      'f64': 0x7c,
-      'anyfunc': 0x70,
-      'func': 0x60,
-      'empty': 0x40 }
+      'f64': 0x7c }
 
   let wasmTypeInfo =
     [ wasmParams.length,
       ...(wasmParams.map(x => encodeType[x])),
       ...(wasmReturn === 'void' ? [0x00] : [0x01, encodeType[wasmReturn]]) ]
 
-  if (wasmTypeInfo in env.wrapperCache) {
-    return [env.wrapperCache[wasmTypeInfo], false]
+  let key = JSON.stringify(wasmTypeInfo)
+
+  if (key in env.wrapperCache) {
+    return env.wrapperCache[key]
   }
 
   let wrapperId = gensym('wrapperId')
-  env.wrapperCache[wasmTypeInfo] = wrapperId
+  env.wrapperCache[key] = wrapperId
 
   // FIXME: This isn't getting outputted anywhere. How should we go about that?
   // QUESTION: Should we compile the module (new WebAssembly.Module) in the output code?
