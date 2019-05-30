@@ -417,7 +417,7 @@ function ${c2arr}(${cArray}) {
 
       const wrappedParams = params2c.map((wrap, id) => `${wrap}(${paramnames[id]})`)
 
-      jsBuffer += `
+      env.jsBuffer += `
 function ${c2fp}(${fp}) {
   return (${paramnames.join(',')}) =>
     ${return2c}(

@@ -42,3 +42,11 @@ char *stringStuff(char *str) {
 void callback(void (*f)(int)) {
   f(777);
 }
+
+int plusOne(int x) {
+  return x + 1;
+}
+
+int (*uncallback())(int) {
+  return &plusOne;
+}

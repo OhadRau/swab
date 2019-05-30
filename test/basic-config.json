@@ -61,6 +61,13 @@
         [ { "type": "int" } ],
         { "type": "void" }
       ] } ]
+    },
+    "uncallback": {
+      "returnType": { "type": "functionPointer", "params": [
+        [ { "type": "int" } ],
+        { "type": "int" }
+      ] },
+      "parameters": []
     }
   }
 }

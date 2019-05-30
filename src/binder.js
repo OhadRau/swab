@@ -122,14 +122,3 @@ export function bind(config) {
 let configFile = process.argv[process.argv.length - 1]
 let config = JSON.parse(fs.readFileSync(configFile, 'utf8'))
 bind(config)
-
-/*
-const env = genBindings('./test/basic-config.json', 'library.wasm')
-//const env = genBindings('./test/libsass-config.json', 'library.wasm')
-console.log(env.jsBuffer)
-console.log('========================================================')
-console.log(env.cBuffer)
-console.log('========================================================')
-console.log(`Imports: [${[...env.imports.values()].join(', ')}]`)
-console.log(`Exports: [${[...env.exports.values()].join(', ')}]`)
-*/

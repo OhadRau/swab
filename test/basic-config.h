@@ -27,4 +27,6 @@ char *stringStuff(char *str);
 
 void callback(void (*f)(int));
 
+int (*uncallback())(int);
+
 #endif
