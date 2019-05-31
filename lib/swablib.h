@@ -5,6 +5,8 @@
 
 #define BINDLIB_VERSION "0.0.0"
 
+typedef int bool;
+
 typedef uint8_t u8;
 typedef  int8_t i8;
 

@@ -12,20 +12,23 @@
 
 
                                                  - - - C L E A N U P - - -
+- Allow renaming of functions:
+  * e.g. if I want to expose malloc: (size_t) -> void * & malloc_str: (size_t) -> char *
+- Utilities for creating pointers (from strings, arrays, etc.)
+  * Should this be an opt in thing? We can just say like `"expose": [ "pointerFromStr", "pointerFromArray" ]`
+  * Realistically, every type used in the API (as a parameter at least) should get one of these functions
+    - But that wouldn't be enough as `u8ArrayToPointer` doesn't automatically work on strings
+  * Maybe we can just do this using `DataView`s/`ArrayBuffer`s? I.e. `DataView` -> <any> *
+- Investigate the way unsigned numbers work right now
 - Rethink/review
   * Does the current array -> JS actually work right for structs and unions?
-  * How can we approach union value constructors without the danger of overwriting ourselves
-    - e.g. typedef union { int x; char y; } z;
-      => create_z({x: 5})
-      => create_z({x: 5, y: 0})
-      => z.x = 5; z.y = 0; // y overwrites x
 - Minor changes
   * Clean up JSON format
     - Inconsistent b/w params[] and params{}, why not just name each one uniquely based on context?
   * Different types of pointers
     - Raw pointer/string pointer/buffer pointer
     - Allows you to override the representation for char *
-    - { type: arrayPointer, params: [ { type: int }, { size: 3 || 'my-size-var' } ] }
+    - Dynamically sized arrays { type: arrayPointer, params: [ { type: int }, { size: 3 || 'my-size-var' } ] }
   * Make sure constructors/destructors don't shadow C exports
   * Rethink `char *` ==> should we just simplify this by doing pointer by default, str.deref() to get the string?
       => might be even more confusing since .deref() should really only return one element

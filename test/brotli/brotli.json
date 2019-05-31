@@ -75,15 +75,11 @@
   },
   "functions": {
     "malloc": {
-      "takes": [
-        "size_t"
-      ],
+      "takes": [ "size_t" ],
       "returns": { "kind": "pointer", "to": { "kind": "void" } }
     },
     "free": {
-      "takes": [
-        { "kind": "pointer", "to": { "kind": "void" } }
-      ],
+      "takes": [ { "kind": "pointer", "to": { "kind": "void" } } ],
       "returns": { "kind": "void" }
     },
 

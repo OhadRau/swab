@@ -168,7 +168,85 @@ export function c2pointer_type(ctype: CType): CType['kind'] {
   }
 }
 
+export function cacheTypeInfo(env: Env, types: CType[]) {
+  // All user defined types + these types
+  types = types.concat([
+    { kind: 'bool' },
+    { kind: 'char' },
+    { kind: 'u8' },
+    { kind: 'i8' },
+    { kind: 'u16' },
+    { kind: 'i16' },
+    { kind: 'u32' },
+    { kind: 'i32' },
+    { kind: 'u64' },
+    { kind: 'i64' },
+    { kind: 'f32' },
+    { kind: 'f64' },
+    { kind: 'void' }
+  ])
+  let typeSpecs: string[] = []
+  for (let ctype of types) {
+    switch (ctype.kind) {
+      case 'u8': case 'i8':
+      case 'u16': case 'i16':
+      case 'u32': case 'i32':
+      case 'u64': case 'i64':
+      case 'f32': case 'f64':
+        typeSpecs.push(`
+"${ctype.kind}": {
+  c2js: ${id},
+  js2c: ${id},
+  size: ${getSizeof(env, ctype)}(),
+  pointerType: "${c2pointer_type(ctype)}"
+}`)
+        break
+      default:
+        typeSpecs.push(`
+"${ctype.kind === 'user' ? ctype.name : ctype.kind}": {
+  c2js: ${c2js(env, ctype)},
+  js2c: ${js2c(env, ctype)},
+  size: ${getSizeof(env, ctype)}(),
+  pointerType: "${c2pointer_type(ctype)}"
+}`)
+    }
+  }
+
+  const string: CType = { kind: 'pointer', to: { kind: 'char' } }
+  typeSpecs.push(`
+"string": {
+  c2js: ${c2js(env, string)},
+  js2c: ${js2c(env, string)},
+  size: ${getSizeof(env, string)}(),
+  pointerType: "${c2pointer_type(string)}"
+}
+`)
+
+  // TODO: Edge case -- what if the user does __types.pointer(__types.myStruct)? Do we have to cache that case?
+  // TODO: Should this copy over the value?
+  // TODO: Create a type spec for arrays
+  const typeSpec = gensym('typeSpec'), value = gensym('value')
+  typeSpecs.push(`
+"pointer": (${typeSpec}) => ({
+  c2js: (${value} => new swab.__WasmPointer(${value}, ${typeSpec}.c2js, ${typeSpec}.js2c, ${typeSpec}.size, ${typeSpec}.pointerType)),
+  js2c: (${value} => ${value}.addr),
+  size: (${getSizeof(env, { kind: 'pointer', to: { kind: 'void' } })}()),
+  pointerType: "${c2pointer_type({ kind: 'pointer', to: { kind: 'void' } })}"
+})
+`)
+
+  env.jsBuffer += `
+export const __types = {
+  ${typeSpecs.join(',\n')}
+};
+`
+}
+
 export function getSizeof(env: Env, ctype: CType): string {
+  // Special case for void *s, we don't want to generate a sizeof(void) (illegal) so we'll just use it as a `u8 *`
+  if (ctype.kind === 'void') {
+    return `(() => 1)`
+  }
   let subbed = substitute(env, ctype)
   let key = JSON.stringify(subbed)
   if (key in env.sizeofTable) {
@@ -413,7 +491,7 @@ function ${c2obj}(${addr}) {
         env.exports.add('free')
         env.jsBuffer += `
 function ${c2ptr}(${ptr}) {
-  return new swab.__WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, ctype)}(), '${c2pointer_type(subtype)}');
+  return new swab.__WasmPointer(${ptr}, ${convert}, ${unconvert}, ${getSizeof(env, subtype)}(), '${c2pointer_type(subtype)}');
 }
 `
         env.c2jsTable[key] = c2ptr

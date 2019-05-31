@@ -70,7 +70,7 @@ function __wasm_identity(__x) {
 #include <string.h>
 `,
     imports: new Set([]),
-    exports: new Set([])
+    exports: new Set([ 'malloc', 'free' ])
   }
 }
 

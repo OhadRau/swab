@@ -11,13 +11,7 @@ brotli.BrotliEncoderDestroyInstance(encoder)
 
 let input = 'Hello world. This is a demo of compression using Brotli.'
 
-let input_buffer = new swab.__WasmPointer(
-  brotli.malloc(input.length + 1).addr,
-  (x) => String.fromCharCode(x),
-  (x) => x.charCodeAt(0),
-  1,
-  'u8'
-)
+let input_buffer = swab.allocate(brotli.__types.char, input.length + 1)
 
 for (let i = 0; i < input.length; i++) {
   input_buffer.offset(i).assign(input[i])
@@ -30,22 +24,10 @@ let max_size = brotli.BrotliEncoderMaxCompressedSize(input.length + 1) // null t
 console.log(`MAX SIZE: ${max_size}`)
 
 // TODO: Easier way of creating typed pointers
-let encoded_size = new swab.__WasmPointer(
-  brotli.malloc(4).addr,
-  (x) => x,
-  (x) => x,
-  4,
-  'u32'
-)
+let encoded_size = swab.allocate(brotli.__types.u32)
 encoded_size.assign(max_size)
 
-let encoded_buffer = new swab.__WasmPointer(
-  brotli.malloc(max_size).addr,
-  (x) => String.fromCharCode(x),
-  (x) => x.charCodeAt(0),
-  1,
-  'u8'
-)
+let encoded_buffer = swab.allocate(brotli.__types.char, max_size)
 console.log(`ADDR: ${encoded_buffer.addr}`)
 
 let encodeStatus =
@@ -68,22 +50,10 @@ for (let i = 0; i < encoded_size.deref(); i++) {
 }
 console.log(`ENCODED: ${estr}`)
 
-let decoded_size = new swab.__WasmPointer(
-  brotli.malloc(4).addr,
-  (x) => x,
-  (x) => x,
-  4,
-  'u32'
-)
+let decoded_size = swab.allocate(brotli.__types.u32)
 decoded_size.assign(max_size)
   
-let decoded_buffer = new swab.__WasmPointer(
-  brotli.malloc(max_size).addr,
-  (x) => String.fromCharCode(x),
-  (x) => x.charCodeAt(0),
-  1,
-  'u8'
-)
+let decoded_buffer = swab.allocate(brotli.__types.char, max_size)
 console.log(`ADDR: ${decoded_buffer.addr}`)
 
 let decodeStatus =

@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-import { c2js, js2c, getConstructor, substitute, CType } from './types'
+import { c2js, js2c, getConstructor, substitute, CType, cacheTypeInfo } from './types'
 import { wrapI64Fn } from './gen_c'
 import { createEnv, gensym } from './env'
 
@@ -179,6 +179,9 @@ export function create_${actualName}_ptr() {
     env.exports.add(constructor)
     env.exports.add(ptrConstructor)
   }
+
+  // Generate a `types` table containing conversions/sizes/etc. for each user-defined type
+  cacheTypeInfo(env, Object.values(env.substitutions))
 
   // Generate wrappers for user-exported functions
   for (let functionName in config.functions) {
