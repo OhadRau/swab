@@ -3,14 +3,14 @@ TARGET=wasm32-unknown-wasi
 
 COMMA=,
 
-SOURCES=main.c basic-config.c ../lib/swablib.c build/basic-bindings.c
+SOURCES=main.c basic-config.c ../../lib/swablib.c build/basic-bindings.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
 IMPORTS=$(shell cat build/import.syms)
 EXPORTS=$(shell cat build/export.syms)
 
-CFLAGS=-I../lib/ --sysroot=$(SYSROOT) --target=$(TARGET)
+CFLAGS=-I../../lib/ --sysroot=$(SYSROOT) --target=$(TARGET)
 IMPORTFLAGS=-allow-undefined-file build/import.syms
 EXPORTFLAGS=$(addprefix --export=, $(EXPORTS))
 LDFLAGS=--no-entry --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) -L$(SYSROOT)/lib/wasm32-wasi -lc
@@ -24,7 +24,7 @@ build/basic-bindings.wasm: $(OBJECTS)
 	wasm-ld $(LDFLAGS) -o $@ $^
 
 build/basic-bindings.c build/basic-bindings.mjs: basic-config.json
-	node ../bin/binder.js basic-config.json
+	node ../../bin/binder.js basic-config.json
 
 %.o: %.c
 	clang $(CFLAGS) -o $@ -c $<

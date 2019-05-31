@@ -90,4 +90,4 @@ typings/
 # Compiled files
 bin/
 *.o
-test/build/*
+test/*/build

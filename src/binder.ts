@@ -11,6 +11,9 @@ type Config = {
   importSymbols: string,
   exportSymbols: string,
 
+  extraExports: string[],
+  extraImports: string[],
+
   includes: string[],
   includesRelative: string[]
   types: any,
@@ -95,6 +98,15 @@ function getCType(input: any): CType {
 
 function genBindings(config: Config, wasmFile: string) {
   let env = createEnv(wasmFile)
+
+  // Add extra exports/imports to the env
+  for (let extraExport of config.extraExports) {
+    env.exports.add(extraExport)
+  }
+
+  for (let extraImport of config.extraImports) {
+    env.imports.add(extraImport)
+  }
 
   // Add user-defined types to substitution table
   for (let typeName in config.types) {

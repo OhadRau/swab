@@ -1,0 +1,247 @@
+{
+  "wasmBinary": "brotli.wasm",
+  "jsOutput": "build/brotli.mjs",
+  "cOutput": "build/brotli.c",
+  "importSymbols": "build/import.syms",
+  "exportSymbols": "build/export.syms",
+
+  "extraImports": [],
+  "extraExports": [],
+
+  "includes": [
+    "brotli/decode.h",
+    "brotli/encode.h",
+    "brotli/types.h"
+  ],
+  "includesRelative": [],
+  "types": {
+    "BROTLI_BOOL": "int",
+    "brotli_alloc_func": {
+      "kind": "functionPointer",
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "void" } },
+        "size_t"
+      ],
+      "returns": { "kind": "pointer", "to": { "kind": "void" } }
+    },
+    "brotli_free_func": {
+      "kind": "functionPointer",
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "void" } },
+        { "kind": "pointer", "to": { "kind": "void" } }
+      ],
+      "returns": { "kind": "void" }
+    },
+    "BrotliEncoderMode": {
+      "kind": "enum",
+      "values": [
+        "BROTLI_MODE_GENERIC", "BROTLI_MODE_TEXT", "BROTLI_MODE_FONT"
+      ]
+    },
+    "BrotliEncoderOperation": {
+      "kind": "enum",
+      "values": [
+        "BROTLI_OPERATION_PROCESS", "BROTLI_OPERATION_FLUSH",
+        "BROTLI_OPERATION_FINISH", "BROTLI_OPERATION_EMIT_METADATA"
+      ]
+    },
+    "BrotliEncoderParameter": {
+      "kind": "enum",
+      "values": [
+        "BROTLI_PARAM_MODE", "BROTLI_PARAM_QUALITY", "BROTLI_PARAM_LGWIN",
+        "BROTLI_PARAM_LGBLOCK", "BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING",
+        "BROTLI_PARAM_SIZE_HINT", "BROTLI_PARAM_LARGE_WINDOW",
+        "BROTLI_PARAM_NPOSTFIX", "BROTLI_PARAM_NDIRECT",
+        "BROTLI_PARAM_STREAM_OFFSET"
+      ]
+    },
+
+    "BrotliDecoderResult": {
+      "kind": "enum",
+      "values": [
+        "BROTLI_DECODER_RESULT_ERROR", "BROTLI_DECODER_RESULT_SUCCESS",
+        "BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT",
+        "BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT"
+      ]
+    },
+    "BrotliDecoderParameter": {
+      "kind": "enum",
+      "values": [
+        "BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION",
+        "BROTLI_DECODER_PARAM_LARGE_WINDOW"
+      ]
+    },
+    "BrotliDecoderErrorCode": "int"
+  },
+  "functions": {
+    "malloc": {
+      "takes": [
+        "size_t"
+      ],
+      "returns": { "kind": "pointer", "to": { "kind": "void" } }
+    },
+    "free": {
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "void" } }
+      ],
+      "returns": { "kind": "void" }
+    },
+
+    "BrotliEncoderSetParameter": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" },
+        "BrotliEncoderParameter",
+        "uint32_t"
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliEncoderCreateInstance": {
+      "takes": [
+        "brotli_alloc_func",
+        "brotli_free_func",
+        { "kind": "pointer", "to": { "kind": "void" } }
+      ],
+      "returns": { "kind": "pointer", "to": "BrotliEncoderState" }
+    },
+    "BrotliEncoderDestroyInstance": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" }
+      ],
+      "returns": { "kind": "void" }
+    },
+    "BrotliEncoderMaxCompressedSize": {
+      "takes": [
+        "size_t"
+      ],
+      "returns": "size_t"
+    },
+    "BrotliEncoderCompress": {
+      "takes": [
+        "int", "int", "BrotliEncoderMode", "size_t",
+        { "kind": "pointer", "to": "uint8_t" },
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": "uint8_t" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliEncoderCompressStream": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" },
+        "BrotliEncoderOperation",
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": { "kind": "pointer", "to": "uint8_t" } },
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": { "kind": "pointer", "to": "uint8_t" } },
+        { "kind": "pointer", "to": "size_t" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliEncoderIsFinished": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliEncoderHasMoreOutput": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliEncoderTakeOutput": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliEncoderState" },
+        { "kind": "pointer", "to": "size_t" }
+      ],
+      "returns": { "kind": "pointer", "to": "uint8_t" }
+    },
+    "BrotliEncoderVersion": {
+      "takes": [],
+      "returns": "uint32_t"
+    },
+
+    "BrotliDecoderSetParameter": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" },
+        "BrotliDecoderParameter",
+        "uint32_t"
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliDecoderCreateInstance": {
+      "takes": [
+        "brotli_alloc_func",
+        "brotli_free_func",
+        { "kind": "pointer", "to": { "kind": "void" } }
+      ],
+      "returns": { "kind": "pointer", "to": "BrotliDecoderState" }
+    },
+    "BrotliDecoderDestroyInstance": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" }
+      ],
+      "returns": { "kind": "void" }
+    },
+    "BrotliDecoderDecompress": {
+      "takes": [
+        "size_t",
+        { "kind": "pointer", "to": "uint8_t" },
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": "uint8_t" }
+      ],
+      "returns": "BrotliDecoderResult"
+    },
+    "BrotliDecoderDecompressStream": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" },
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": { "kind": "pointer", "to": "uint8_t" } },
+        { "kind": "pointer", "to": "size_t" },
+        { "kind": "pointer", "to": { "kind": "pointer", "to": "uint8_t" } },
+        { "kind": "pointer", "to": "size_t" }
+      ],
+      "returns": "BrotliDecoderResult"
+    },
+    "BrotliDecoderHasMoreOutput": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliDecoderTakeOutput": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" },
+        { "kind": "pointer", "to": "size_t" }
+      ],
+      "returns": { "kind": "pointer", "to": "uint8_t" }
+    },
+    "BrotliDecoderIsUsed": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliDecoderIsFinished": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" }
+      ],
+      "returns": "BROTLI_BOOL"
+    },
+    "BrotliDecoderGetErrorCode": {
+      "takes": [
+        { "kind": "pointer", "to": "BrotliDecoderState" }
+      ],
+      "returns": "BrotliDecoderErrorCode"
+    },
+    "BrotliDecoderErrorString": {
+      "takes": [
+        "BrotliDecoderErrorCode"
+      ],
+      "returns": { "kind": "pointer", "to": { "kind": "char" } }
+    },
+    "BrotliDecoderVersion": {
+      "takes": [],
+      "returns": "uint32_t"
+    }
+  }
+}

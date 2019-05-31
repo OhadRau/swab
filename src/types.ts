@@ -444,6 +444,11 @@ function ${c2arr}(${cArray}) {
       env.c2jsTable[key] = c2arr
       return c2arr
     case 'functionPointer':
+      /* C to JS for a function pointer:
+       * - The function pointer excepts C params and returns a C result
+       * - We want to take JS params and convert them to C params
+       * - We want to take the C return value and convert it to JS
+      */
       const paramtypes = ctype.takes
       const returntype = ctype.returns
 
@@ -451,14 +456,14 @@ function ${c2arr}(${cArray}) {
       const paramnames = paramtypes.map(_ => gensym('param'))
 
       const params2c = paramtypes.map(type => js2c(env, type))
-      const return2c = js2c(env, returntype)
+      const return2js = c2js(env, returntype)
 
       const wrappedParams = params2c.map((wrap, id) => `${wrap}(${paramnames[id]})`)
 
       env.jsBuffer += `
 function ${c2fp}(${fp}) {
   return (${paramnames.join(',')}) =>
-    ${return2c}(
+    ${return2js}(
       swab.__wasm_table.get(${fp})(${wrappedParams})
     );
 }
@@ -602,14 +607,14 @@ export function js2c(env: Env, ctype: CType): string {
     case 'functionPointer':
       /* Multi-step process:
        * - Figure out what the equivalent JS types are
-       * - Setup code to perform the JS->C conversions for args + return value
+       * - Setup code to perform the C->JS conversions for args + JS->C for return value
        * - Do the conversion into a JS function
        */
       const paramtypes = ctype.takes
       const returntype = ctype.returns
 
       const cparams = paramtypes.map(ctype => c2js(env, ctype))
-      const creturn = c2js(env, returntype)
+      const creturn = js2c(env, returntype)
 
       const fp = gensym('functionPointer'), result = gensym('result'), fpId = gensym('fpId')
       const paramNames = paramtypes.map(_ => gensym('param'))
@@ -620,6 +625,7 @@ export function js2c(env: Env, ctype: CType): string {
 
       // TODO: If it returns void don't do anything with the result value
       // TODO: Can we statically perform the function wrapping? Everything but the inner function is known statically.
+      // WARN: __wasm_table_free() is a bad idea because some libraries (e.g. brotli) hold onto function pointers in internal state
       return `
 (${fp} => {
   const ${fpId} = swab.__wasm_table_alloc();
@@ -629,7 +635,7 @@ export function js2c(env: Env, ctype: CType): string {
       (${paramNames}) => {
         const ${result} =
           ${creturn}(${fp}(${castparams}))
-        swab.__wasm_table_free(${fpId})
+        //swab.__wasm_table_free(${fpId})
         return ${result}
       },
       '${wrapperId}'
@@ -645,7 +651,7 @@ export function js2c(env: Env, ctype: CType): string {
         enum2num[ctype.values[i]] = i
       }
       const name = gensym('enum')
-      return `(${name} => ${JSON.stringify(enum2num)}[${name}])`
+      return `(${name} => (${JSON.stringify(enum2num)}[${name}]))`
     case 'struct':
     case 'union':
       // QUESTION: Maybe we should just write to a pointer? Or else create a copy?
