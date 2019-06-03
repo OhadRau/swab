@@ -219,8 +219,7 @@ export function cacheTypeInfo(env: Env, types: CType[]) {
   js2c: ${js2c(env, string)},
   size: ${getSizeof(env, string)}(),
   pointerType: "${c2pointer_type(string)}"
-}
-`)
+}`)
 
   // TODO: Edge case -- what if the user does __types.pointer(__types.myStruct)? Do we have to cache that case?
   // TODO: Should this copy over the value?
@@ -233,8 +232,7 @@ export function cacheTypeInfo(env: Env, types: CType[]) {
   js2c: (${ptr} => ${ptr}.addr),
   size: (${getSizeof(env, void_ptr)}()),
   pointerType: "${c2pointer_type(void_ptr)}"
-})
-`)
+})`)
 
 // TODO: Test that this actually works in any capacity
 const array = gensym('array'), length = gensym('length'), index = gensym('index')
@@ -262,8 +260,7 @@ typeSpecs.push(`
   }),
   size: (${getSizeof(env, void_ptr)}()),
   pointerType: "${c2pointer_type(void_ptr)}"
-})
-`)
+})`)
 
   env.jsBuffer += `
 export const __types = {
@@ -769,7 +766,7 @@ export function js2c(env: Env, ctype: CType): string {
       for (let field in ctype.fields) {
         params.push(`${field}: ${obj}.get_${field}()`)
       }
-      return `(${obj} => ${getConstructor(env, ctype)}({${params.join(',')}})`
+      return `(${obj} => ${getConstructor(env, ctype)}({${params.join(',')}}))`
     case 'void':
       return id
     default:

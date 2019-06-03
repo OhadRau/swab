@@ -10,6 +10,8 @@
   "includesRelative": [
     "../basic-config.h"
   ],
+  "extraExports": [],
+  "extraImports": [],
   "types": {
     "version_info": {
       "kind": "struct",
