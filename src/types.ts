@@ -33,7 +33,7 @@ interface FunctionPointer {
 }
 interface Enum {
   kind: "enum",
-  values: string[],
+  values: { [key: string]: number },
   orig?: CType
 }
 interface Struct {
@@ -225,13 +225,43 @@ export function cacheTypeInfo(env: Env, types: CType[]) {
   // TODO: Edge case -- what if the user does __types.pointer(__types.myStruct)? Do we have to cache that case?
   // TODO: Should this copy over the value?
   // TODO: Create a type spec for arrays
-  const typeSpec = gensym('typeSpec'), value = gensym('value')
+  const void_ptr: CType = { kind: 'pointer', to: { kind: 'void' } }
+  const typeSpec = gensym('typeSpec'), ptr = gensym('ptr')
   typeSpecs.push(`
 "pointer": (${typeSpec}) => ({
-  c2js: (${value} => new swab.__WasmPointer(${value}, ${typeSpec}.c2js, ${typeSpec}.js2c, ${typeSpec}.size, ${typeSpec}.pointerType)),
-  js2c: (${value} => ${value}.addr),
-  size: (${getSizeof(env, { kind: 'pointer', to: { kind: 'void' } })}()),
-  pointerType: "${c2pointer_type({ kind: 'pointer', to: { kind: 'void' } })}"
+  c2js: (${ptr} => new swab.__WasmPointer(${ptr}, ${typeSpec}.c2js, ${typeSpec}.js2c, ${typeSpec}.size, ${typeSpec}.pointerType)),
+  js2c: (${ptr} => ${ptr}.addr),
+  size: (${getSizeof(env, void_ptr)}()),
+  pointerType: "${c2pointer_type(void_ptr)}"
+})
+`)
+
+// TODO: Test that this actually works in any capacity
+const array = gensym('array'), length = gensym('length'), index = gensym('index')
+typeSpecs.push(`
+"array": (${typeSpec}, ${length}) => ({
+  c2js: (${ptr} => {
+    for (let ${index} = 0; ${index} < ${length}; ${index}++) {
+      ${ptr}[${index}] = ${typeSpec}.c2js(${ptr}.offset(idx));
+    }
+    return ${ptr};
+  }),
+  js2c: (${array} => {
+    const ${ptr} = new swab.__WasmPointer(
+      swab.__wasm_exports.malloc(${array}.length),
+      ${typeSpec}.c2js,
+      ${typeSpec}.js2c,
+      ${typeSpec}.size,
+      ${typeSpec}.pointerType
+    );
+    for (let ${index} = 0; ${index} < ${array}.length; ${index}++) {
+      ${typeSpec}.copy(${ptr}.offset(${index}).addr, ${array}[${index}]);
+    }
+
+    return ${ptr}.addr;
+  }),
+  size: (${getSizeof(env, void_ptr)}()),
+  pointerType: "${c2pointer_type(void_ptr)}"
 })
 `)
 
@@ -550,9 +580,13 @@ function ${c2fp}(${fp}) {
       return c2fp
     case 'enum':
       const c2enum = gensym('c2enum'), name = gensym('enum')
+      let num2enum: { [key: number]: string } = {}
+      for (let [key, value] of Object.entries(ctype.values)) {
+        num2enum[value] = key
+      }
       env.jsBuffer += `
 function ${c2enum}(${name}) {
-  return ${JSON.stringify(ctype.values)}[${name}];
+  return ${JSON.stringify(num2enum)}[${name}];
 }
 `
       env.c2jsTable[key] = c2enum
@@ -722,14 +756,8 @@ export function js2c(env: Env, ctype: CType): string {
   return ${fpId};
 })`
     case 'enum':
-      // Reverse the enum definition and index into that
-      const enum2num: { [key: string]: number } = {}
-      // TypeScript doesn't support for ... in for arrays :(
-      for (let i = 0; i < ctype.values.length; i++) {
-        enum2num[ctype.values[i]] = i
-      }
       const name = gensym('enum')
-      return `(${name} => (${JSON.stringify(enum2num)}[${name}]))`
+      return `(${name} => (${JSON.stringify(ctype.values)}[${name}]))`
     case 'struct':
     case 'union':
       // QUESTION: Maybe we should just write to a pointer? Or else create a copy?

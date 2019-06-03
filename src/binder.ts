@@ -69,7 +69,15 @@ function getCType(input: any): CType {
         break
       case 'enum':
         if (input.values) {
-          return { kind: 'enum', values: input.values } 
+          if (Array.isArray(input.values)) {
+            let values: { [key: string]: number } = {}
+            for (let i = 0; i < input.values.length; i++) {
+              values[input.values[i]] = i
+            }
+            return { kind: 'enum', values }
+          } else {
+            return { kind: 'enum', values: input.values }
+          }
         }
         break
       case 'struct':

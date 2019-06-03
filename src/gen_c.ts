@@ -60,7 +60,7 @@ export function formatCType(ctype: CType, buffer: string = ''): string {
       const argTypes = ctype.takes.map((ty: CType) => formatCType(ty))
       return formatCType(ctype.returns, `(*${buffer})(${argTypes.join(',')})`)
     case 'enum':
-      let enumFields = ctype.values
+      let enumFields = Object.entries(ctype.values).map(([key, value]) => `${key} = ${value}`)
       return `enum { ${enumFields.join(',')} } ${buffer}`
     case 'struct':
       let structFields = ''
@@ -93,10 +93,14 @@ export function formatFunctionDecl(name: string, args: { [name: string]: CType }
 }
 
 export function wrapCopy(env: Env, ctype: CType) {
+  // No good way to copy a void pointer
+  if (ctype.kind === 'void') {
+    throw "Can't generate a copy function for `void *`"
+  }
   const key = JSON.stringify(ctype)
 
   const copyName = (obj: CType) => {
-    const unsubbed = obj.orig || obj;
+    const unsubbed = obj.orig || obj
     if (unsubbed.kind === 'user') {
       // If the name is like `struct t` we want to only take the `t`
       const components = unsubbed.name.split(/\s+/g)
