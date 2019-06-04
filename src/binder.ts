@@ -189,7 +189,7 @@ export function create_${actualName}_ptr() {
   }
 
   // Generate a `types` table containing conversions/sizes/etc. for each user-defined type
-  cacheTypeInfo(env, Object.values(env.substitutions))
+  cacheTypeInfo(env, Object.keys(env.substitutions).map(getCType))
 
   // Generate wrappers for user-exported functions
   for (let functionName in config.functions) {

@@ -187,27 +187,28 @@ export function cacheTypeInfo(env: Env, types: CType[]) {
   ])
   let typeSpecs: string[] = []
   for (let ctype of types) {
-    switch (ctype.kind) {
+    let subbedType = substitute(env, ctype)
+    switch (subbedType.kind) {
       case 'u8': case 'i8':
       case 'u16': case 'i16':
       case 'u32': case 'i32':
       case 'u64': case 'i64':
       case 'f32': case 'f64':
         typeSpecs.push(`
-"${ctype.kind}": {
+"${ctype.kind === 'user' ? ctype.name : ctype.kind}": {
   c2js: ${id},
   js2c: ${id},
   size: ${getSizeof(env, ctype)}(),
-  pointerType: "${c2pointer_type(ctype)}"
+  pointerType: "${c2pointer_type(subbedType)}"
 }`)
         break
       default:
         typeSpecs.push(`
 "${ctype.kind === 'user' ? ctype.name : ctype.kind}": {
-  c2js: ${c2js(env, ctype)},
-  js2c: ${js2c(env, ctype)},
+  c2js: ${c2js(env, subbedType)},
+  js2c: ${js2c(env, subbedType)},
   size: ${getSizeof(env, ctype)}(),
-  pointerType: "${c2pointer_type(ctype)}"
+  pointerType: "${c2pointer_type(subbedType)}"
 }`)
     }
   }

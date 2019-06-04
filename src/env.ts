@@ -69,7 +69,7 @@ function __wasm_identity(__x) {
 #include <stdlib.h>
 #include <string.h>
 `,
-    imports: new Set([]),
+    imports: new Set([ '__js_new_big_int', '__js_big_int_upper', '__js_big_int_lower' ]),
     exports: new Set([ 'malloc', 'free' ])
   }
 }
