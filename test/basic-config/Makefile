@@ -13,7 +13,7 @@ EXPORTS=$(shell cat build/export.syms)
 CFLAGS=-I../../lib/ --sysroot=$(SYSROOT) --target=$(TARGET)
 IMPORTFLAGS=-allow-undefined-file build/import.syms
 EXPORTFLAGS=$(addprefix --export=, $(EXPORTS))
-LDFLAGS=--no-entry --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) -L$(SYSROOT)/lib/wasm32-wasi -lc
+LDFLAGS=--entry=main --import-memory --import-table $(IMPORTFLAGS) $(EXPORTFLAGS) -L$(SYSROOT)/lib/wasm32-wasi -lc
 
 all: build/basic-bindings.wasm
 

@@ -1,0 +1,121 @@
+{
+  "wasmBinary": "stb_image.wasm",
+  "jsOutput": "build/stb_image.mjs",
+  "cOutput": "build/stb_image.c",
+  "importSymbols": "build/import.syms",
+  "exportSymbols": "build/export.syms",
+  "includes": [
+    "stdio.h"
+  ],
+  "includesRelative": [
+    "../stb_image.h"
+  ],
+  "extraExports": [],
+  "extraImports": [],
+  "types": {
+    "stbi_color_channels": {
+      "kind": "enum",
+      "values": {
+        "STBI_default": 0,
+        "STBI_grey": 1,
+        "STBI_grey_alpha": 2,
+        "STBI_rgb": 3,
+        "STB_rgb_alpha": 4
+      }
+    },
+    "stbi_uc": "uint8_t",
+    "stbi_us": "uint16_t",
+    "stbi_io_callbacks": {
+      "kind": "struct",
+      "fields": {
+        "read": {
+          "kind": "functionPointer",
+          "takes": [
+            { "kind": "pointer", "to": { "kind": "void" } },
+            { "kind": "pointer", "to": { "kind": "char" } },
+            "int"
+          ],
+          "returns": "int"
+        },
+        "skip": {
+          "kind": "functionPointer",
+          "takes": [
+            { "kind": "pointer", "to": { "kind": "void" } },
+            "int"
+          ],
+          "returns": { "kind": "void" }
+        },
+        "eof": {
+          "kind": "functionPointer",
+          "takes": [ { "kind": "pointer", "to": { "kind": "void" } } ],
+          "returns": "int"
+        }
+      }
+    }
+  },
+  "functions": {
+    "fopen": {
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "char" } },
+        { "kind": "pointer", "to": { "kind": "char" } }
+      ],
+      "returns": { "kind": "pointer", "to": "FILE" }
+    },
+    "_start": {
+      "takes": [],
+      "returns": { "kind": "void" }
+    },
+    "stbi_load_from_memory": {
+      "takes": [
+        { "kind": "pointer", "to": "stbi_uc" },
+        "int",
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        "stbi_color_channels"
+      ],
+      "returns": { "kind": "pointer", "to": "stbi_uc" }
+    },
+    "stbi_load_from_callbacks": {
+      "takes": [
+        { "kind": "pointer", "to": "stbi_io_callbacks" },
+        { "kind": "pointer", "to": { "kind": "void" } },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        "stbi_color_channels"
+      ],
+      "returns": { "kind": "pointer", "to": "stbi_uc" }
+    },
+    "stbi_load": {
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "char" } },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        "stbi_color_channels"
+      ],
+      "returns": { "kind": "pointer", "to": "stbi_uc" }
+    },
+    "stbi_load_from_file": {
+      "takes": [
+        { "kind": "pointer", "to": "FILE" },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        { "kind": "pointer", "to": "int" },
+        "stbi_color_channels"
+      ],
+      "returns": { "kind": "pointer", "to": "stbi_uc" }
+    },
+    "stbi_image_free": {
+      "takes": [
+        { "kind": "pointer", "to": { "kind": "void" } }
+      ],
+      "returns": { "kind": "void" }
+    },
+    "stbi_failure_reason": {
+      "takes": [],
+      "returns": { "kind": "pointer", "to": { "kind": "char" } }
+    }
+  }
+}
