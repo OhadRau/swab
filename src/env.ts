@@ -74,6 +74,8 @@ function __wasm_identity(__x) {
   }
 }
 
+export const id: string = '__wasm_identity'
+
 let uniq = 0
 export function gensym(name: string = 'uniq'): string {
   return `__${name}${uniq++}`

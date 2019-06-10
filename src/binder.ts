@@ -1,8 +1,9 @@
 import * as fs from 'fs'
 
-import { c2js, js2c, getConstructor, substitute, CType, cacheTypeInfo } from './types'
+import { getConstructor, substitute, CType, cacheTypeInfo } from './types'
 import { wrapI64Fn } from './gen_c'
 import { createEnv, gensym } from './env'
+import { js2c, c2js } from './gen_js';
 
 type Config = {
   wasmBinary: string,
